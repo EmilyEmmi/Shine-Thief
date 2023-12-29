@@ -1,0 +1,15 @@
+extern const GeoLayout shine_geo[];
+extern Lights1 star_Body_000_f3d_lights;
+extern Lights1 star_Body_000_eye_png_f3d_layer4_lights;
+extern u8 star_body_rgba16[];
+extern u8 star_eye_rgba16[];
+extern Vtx star_Shine_Sprite_mesh_layer_4_vtx_0[342];
+extern Gfx star_Shine_Sprite_mesh_layer_4_tri_0[];
+extern Vtx star_Shine_Sprite_mesh_layer_4_vtx_1[8];
+extern Gfx star_Shine_Sprite_mesh_layer_4_tri_1[];
+extern Gfx mat_star_Body_000_f3d[];
+extern Gfx mat_revert_star_Body_000_f3d[];
+extern Gfx mat_star_Body_000_eye_png_f3d_layer4[];
+extern Gfx mat_revert_star_Body_000_eye_png_f3d_layer4[];
+extern Gfx star_Shine_Sprite_mesh_layer_4[];
+extern Gfx star_material_revert_render_settings[];
