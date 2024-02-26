@@ -1,14 +1,14 @@
 -- This file handles the shine, pipes, and deleted objects
 
 define_custom_obj_fields({
-    oShineOwner = "s32", -- The global index of the player with the shine (-1 is no owner)
+    oObjectOwner = "s32", -- The global index of the player who owns this item. This used to be used for the shine too
     oShineDistFromHome = "f32", -- oStarSpawnDisFromHome screws up for some reason
 })
 
 -- The shine is built off the star, obviously
 --- @param o Object
 function bhv_shine_init(o)
-    local shine = obj_get_first_with_behavior_id_and_field_s32(bhvShine, 0x40, o.oBehParams)
+    local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, o.oBehParams)
     if shine == o then obj_get_next_with_same_behavior_id_and_field_s32(shine, 0x40, o.oBehParams) end
     
     if shine and shine ~= o then -- don't want a second shine
@@ -28,8 +28,9 @@ function bhv_shine_init(o)
     o.oFaceAnglePitch = 0
     o.oFaceAngleRoll = 0
     o.oAnimState = -1
+    o.oInteractStatus = 0
 
-    -- The shine works much better if we send packets manually
+    -- The shine works much better(?) if we send packets manually
     network_init_object(o, false, {
         'oPosX',
         'oPosY',
@@ -39,9 +40,7 @@ function bhv_shine_init(o)
         'oMoveAngleYaw',
         'oTimer',
         'oAction',
-        'oShineOwner',
-        'oStarSpawnUnkFC', -- might not be necessary?
-        'oHomeX', -- same for all home stuff
+        'oHomeX',
         'oHomeY',
         'oHomeZ',
     })
@@ -54,50 +53,32 @@ function bhv_shine_loop(o)
     local sMario = gPlayerSyncTable[m.playerIndex]
 
     o.oFaceAngleYaw = o.oFaceAngleYaw + 0x800 -- spin
+    local shineOwner = get_shine_owner(o.oBehParams)
 
-    if o.oShineOwner and o.oShineOwner ~= -1 then -- go above owner's head
-        local np = network_player_from_global_index(o.oShineOwner)
+    if shineOwner ~= -1 then -- go above owner's head
+        local np = network_player_from_global_index(shineOwner)
         o.oAction = 0
         if np and np.connected and is_player_active(gMarioStates[np.localIndex]) then
-            local ownerSMario = gPlayerSyncTable[np.localIndex]
-            
-            if (ownerSMario.hasShine ~= o.oBehParams) then -- fix "fake shine" bug
-                if o.oTimer > 10 then -- ten frames to prevent instant loss
-                    print("False shine owner detected, fixing issue")
-                    o.oShineOwner = -1
-                    if o.oAction == 0 then
-                        cur_obj_change_action(1)
-                    end
-                    send = true
-                end
-            else
-                local ownerM = gMarioStates[np.localIndex]
-                o.oTimer = 0
-                o.oPosX = ownerM.pos.x
-                o.oPosY = ownerM.pos.y + 250
-                o.oPosZ = ownerM.pos.z
-                if np.localIndex == 0 then
-                    --gPlayerSyncTable[0].hasShine = o.oBehParams
-                    send = true
-                end
+            local ownerM = gMarioStates[np.localIndex]
+            o.oTimer = 0
+            o.oPosX = ownerM.pos.x
+            o.oPosY = ownerM.pos.y + 250
+            o.oPosZ = ownerM.pos.z
+            if np.localIndex == 0 then
+                send = true
             end
         else
             print("Shine owner is not active, fixing issue")
-            o.oShineOwner = -1
+            shineOwner = set_player_owned_shine(-1, o.oBehParams)
             if o.oAction == 0 then
                 cur_obj_change_action(1)
             end
             send = true
         end
-    elseif gPlayerSyncTable[0].hasShine == o.oBehParams and o.oTimer > 10 then -- prevent "false owner" bug
-        print("I don't actually have the shine! Fixing issue...")
-        gPlayerSyncTable[0].hasShine = 0
-    elseif m and sMario.hasShine == 0 and (not sMario.spectator) and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently)
-        local np = gNetworkPlayers[m.playerIndex]
-        o.oShineOwner = np.globalIndex
+    elseif m and get_player_owned_shine(m.playerIndex) == 0 and gGlobalSyncTable.gameState ~= 1 and (not sMario.spectator) and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently)
+        shineOwner = set_player_owned_shine(m.playerIndex, o.oBehParams)
         cur_obj_change_action(0)
         
-        sMario.hasShine = o.oBehParams
         if m.playerIndex == 0 then -- the player who grabbed the shine sends a global message, to keep things synced
             sentShineMessage = false
             
@@ -115,16 +96,19 @@ function bhv_shine_loop(o)
     end
 
     -- handles bouncing and returning
-    if o.oAction == 0 and o.oShineOwner == -1 then
-        o.oInteractStatus = 0
+    if o.oAction == 0 and shineOwner == -1 then
         cur_obj_become_tangible()
+        cur_obj_update_floor()
+        if is_hazard_floor(o.oFloorType) and cur_obj_lateral_dist_to_home() > 1 and (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND or gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then
+            shine_return(o)
+            cur_obj_become_intangible()
+        end
     elseif o.oAction == 1 then -- bouncing on ground
-        local stepResult = object_step()
+        local stepResult = object_step_without_floor_orient()
         cur_obj_update_floor()
         o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000 -- spin faster
 
         if o.oTimer >= 10 then
-            o.oInteractStatus = 0
             cur_obj_become_tangible()
         end
 
@@ -133,13 +117,13 @@ function bhv_shine_loop(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif is_hazard_floor(o.oFloorType)
-        and stepResult == OBJ_MOVE_LANDED then -- return if in quicksand or lava
+        and stepResult == OBJ_MOVE_LANDED and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then -- return if in quicksand or lava
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif (o.oForwardVel < 2 and o.oVelY < 1) or (stepResult == OBJ_MOVE_LANDED and o.oTimer > 300) then -- sometimes the shine gets stuck on slopes, so stop automatically after 10 seconds
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
-            if is_hazard_floor(o.oFloorType) then
+            if is_hazard_floor(o.oFloorType) and (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND or gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then
                 -- prevent shine from getting stuck on these floors
                 shine_return(o)
                 cur_obj_become_intangible()
@@ -171,20 +155,20 @@ function bhv_shine_loop(o)
             o.oPosZ = o.oHomeZ
 
             cur_obj_change_action(0)
-            o.oInteractStatus = 0
             cur_obj_become_tangible()
             o.oForwardVel = 0
         end
 
         if m.playerIndex == 0 then send = true end
     end
+    o.oInteractStatus = 0
 
     -- send data if we're holding the shine, or if we're the closest if no one is holding it
     if send then
         network_send_object(o, true)
     end
 end
-bhvShine = hook_behavior(nil, OBJ_LIST_LEVEL, true, bhv_shine_init, bhv_shine_loop, "bhvShine")
+id_bhvShine = hook_behavior(nil, OBJ_LIST_LEVEL, true, bhv_shine_init, bhv_shine_loop, "bhvShine")
 
 -- uses the same formula as stars
 function shine_return(shine)
@@ -200,10 +184,9 @@ end
 
 function lose_shine(index,dropType)
     local m = gMarioStates[index]
-    local sMario = gPlayerSyncTable[index]
     local np = gNetworkPlayers[index]
 
-    if index == 0 and sentShineMessage and dropType ~= 2 and dropType ~= 3 then
+    if index == 0 and sentShineMessage and dropType ~= 2 and dropType ~= 3 then -- stole shine message is set outside of here
         local playerColor = network_get_player_text_color_string(0)
         if lastAttacker == 0 then
             djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
@@ -222,11 +205,11 @@ function lose_shine(index,dropType)
         djui_popup_create("The \\#ffff40\\Shine\\#ffffff\\ was dropped!",1) -- on disconnect, don't use name
     end
 
+    local ownedShine = get_player_owned_shine(index)
+    if ownedShine == 0 then return nil end
     
-    local shine = obj_get_first_with_behavior_id_and_field_s32(bhvShine, 0x40, (sMario.hasShine or 0))
-    sMario.hasShine = 0
-    if shine and (dropType == 3 or shine.oShineOwner == np.globalIndex) then
-        shine.oShineOwner = -1
+    local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, ownedShine)
+    if shine then
         shine.oTimer = 0
         if dropType == 1 then -- fell off stage
             shine_return(shine)
@@ -238,7 +221,7 @@ function lose_shine(index,dropType)
             shine.oTimer = 30
             shine.oInteractStatus = 0
             obj_become_tangible(shine)
-        elseif dropType == 3 then -- steal/start game (owner is set outside of this)
+        elseif dropType == 3 then -- steal
             shine.oVelY = 0
             shine.oAction = 0
             shine.oForwardVel = 0
@@ -249,10 +232,8 @@ function lose_shine(index,dropType)
             shine.oForwardVel = 20
             shine.oMoveAngleYaw = math.random(0, 0xFFFF) -- random; any direction
         end
-    else
-        return nil
+        set_player_owned_shine(-1, ownedShine)
     end
-    
     return shine
 end
 
@@ -303,7 +284,7 @@ end
 function st_pipe_loop(o)
     local m = nearest_mario_state_to_object(o)
     if m and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
-        local pair = obj_get_first_with_behavior_id_and_field_s32(bhvSTPipe, 0x40, o.oBehParams2ndByte) -- 0x40 is "oBehParams"
+        local pair = obj_get_first_with_behavior_id_and_field_s32(id_bhvSTPipe, 0x40, o.oBehParams2ndByte) -- 0x40 is "oBehParams"
         if pair then
             drop_and_set_mario_action(m, ACT_TRIPLE_JUMP, 1)
             m.pos.x = pair.oPosX
@@ -315,15 +296,16 @@ function st_pipe_loop(o)
             --m.actionTimer = 11
             cur_obj_play_sound_1(SOUND_MENU_ENTER_PIPE)
             if m.playerIndex == 0 then
+                -- TODO: Set camera yaw to behind mario
                 soft_reset_camera(m.area.camera)
+                center_rom_hack_camera()
             end
         end
         o.oInteractStatus = 0
     end
     load_object_collision_model()
 end
-bhvSTPipe = hook_behavior(nil, OBJ_LIST_SURFACE, true, st_pipe_init, st_pipe_loop, "bhvSTPipe")
-
+id_bhvSTPipe = hook_behavior(nil, OBJ_LIST_SURFACE, true, st_pipe_init, st_pipe_loop, "bhvSTPipe")
 -- very similar to the red coin one, but doesn't drop to floor
 --- @param o Object
 function shine_marker_init(o)
@@ -337,7 +319,7 @@ function shine_marker_loop(o)
     o.oFaceAngleYaw = o.oFaceAngleYaw + 0x100
     o.oFaceAnglePitch = 0x4000
 end
-bhvShineMarker = hook_behavior(nil, OBJ_LIST_DEFAULT, true, shine_marker_init, shine_marker_loop)
+id_bhvShineMarker = hook_behavior(nil, OBJ_LIST_DEFAULT, true, shine_marker_init, shine_marker_loop, "bhvShineMarker")
 
 -- somewhat based on the arena bob-omb
 --- @param o Object
@@ -388,15 +370,83 @@ function thrown_bomb_loop(o)
         o.oAnimState = o.oAnimState + 1
     end
 end
-bhvThrownBobomb = hook_behavior(nil, OBJ_LIST_DESTRUCTIVE, true, thrown_bomb_init, thrown_bomb_loop)
+id_bhvThrownBobomb = hook_behavior(nil, OBJ_LIST_DESTRUCTIVE, true, thrown_bomb_init, thrown_bomb_loop, "bhvThrownBobomb")
 
--- delete shells if their action is not riding
-function delete_shell_if_not_ride(o)
-    if o.oAction ~= 1 then
-        o.activeFlags = ACTIVE_FLAG_DEACTIVATED
+-- custom shells that only do the ride action (slightly based on shell rush (gamemode))
+function custom_shell_init(o)
+    o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
+
+    o.oWallHitboxRadius = 30
+    o.oGravity = -4
+    o.oBounciness = -0.5
+    o.oDragStrength = 1
+    o.oFriction = 10
+    o.oBuoyancy = 2
+end
+function custom_shell_loop(o)
+    if o.heldByPlayerIndex < MAX_PLAYERS then
+        local m = gMarioStates[o.heldByPlayerIndex]
+
+        if m.action & ACT_FLAG_RIDING_SHELL == 0 then
+            obj_mark_for_deletion(o)
+            return
+        end
+
+        local player = m.marioObj
+        if player then
+            obj_copy_pos(o, player)
+        end
+        local sp34 = cur_obj_update_floor_height_and_get_floor()
+        if math.abs(find_water_level(o.oPosX, o.oPosZ) - o.oPosY) < 10.0 then
+            koopa_shell_spawn_water_drop(o)
+        elseif 5.0 > math.abs(o.oPosY - o.oFloorHeight) then
+            if sp34 ~= nil and sp34.type == 1 then
+                bhv_koopa_shell_flame_spawn(o)
+            else
+                koopa_shell_spawn_sparkles(o, 10.0)
+            end
+        else
+            koopa_shell_spawn_sparkles(o, 10.0)
+        end
+        if player then
+            o.oFaceAngleYaw = player.oMoveAngleYaw
+        end
+
+        if o.oInteractStatus & INT_STATUS_STOP_RIDING ~= 0 then
+            spawn_mist_particles()
+            o.oInteractStatus = 0
+            o.heldByPlayerIndex = 0
+            obj_mark_for_deletion(o)
+        end
     end
 end
-id_bhvKoopaShell = hook_behavior(id_bhvKoopaShell, OBJ_LIST_LEVEL, false, delete_shell_if_not_ride, nil)
+
+function koopa_shell_spawn_water_drop(o)
+    spawn_non_sync_object(id_bhvObjectWaveTrail, E_MODEL_WAVE_TRAIL, o.oPosX, o.oPosY, o.oPosZ, nil)
+    if (o.heldByPlayerIndex < MAX_PLAYERS) then
+        if (gMarioStates[o.heldByPlayerIndex].forwardVel > 10.0) then
+            local drop = spawn_non_sync_object(id_bhvWaterDroplet, E_MODEL_WHITE_PARTICLE_SMALL, o.oPosX, o.oPosY, o.oPosZ, function(d) obj_scale(d, 1.5) end)
+            if drop then
+                drop.oVelY = math.random() * 30.0
+                obj_translate_xz_random(drop, 110.0)
+            end
+        end
+    end
+end
+
+function bhv_koopa_shell_flame_spawn(o)
+    for i=0,1 do
+        spawn_non_sync_object(id_bhvKoopaShellFlame, E_MODEL_RED_FLAME, o.oPosX, o.oPosY, o.oPosZ, nil)
+    end
+end
+
+function koopa_shell_spawn_sparkles(o, a)
+    local sp1C = spawn_non_sync_object(id_bhvSparkleSpawn, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
+    if not sp1C then return end
+    sp1C.oPosY = sp1C.oPosY + a
+end
+
+id_bhvSTShell = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_shell_init, custom_shell_loop, nil)
 
 -- fix bowser
 function custom_bowser_loop(o)
@@ -417,8 +467,8 @@ local id_level_exception = {
     [id_bhvFlame] = 1,
     [id_bhvWarp] = 1,
     [id_bhvFadingWarp] = 1,
-    [id_bhvKoopaShell] = 1,
     [id_bhvKoopaShellUnderwater] = 1,
+    [id_bhvSTShell] = 1,
 }
 local id_delete = {
     [id_bhvBowserBomb] = 1,
@@ -449,7 +499,7 @@ function delete_level(o)
     if id == id_bhvStar then
         table.insert(spawn_potential, {o.oPosX,o.oPosY,o.oPosZ})
         obj_mark_for_deletion(o)
-    elseif ((get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL and (not id_level_exception[id]) and id ~= bhvShine)) then
+    elseif ((get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL and (not id_level_exception[id]) and id ~= id_bhvShine)) then
         obj_mark_for_deletion(o)
     end
 end
@@ -495,14 +545,6 @@ function replace_spawn(o)
     obj_mark_for_deletion(o)
 end
 id_bhvArenaSpawn = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_spawn, nil, "bhvArenaSpawn")
-
-function replace_spring(o)
-    o.oBehParams = 0x1
-    o.oBehParams2ndByte = 0x1
-    obj_set_model_extended(o, E_MODEL_BITS_WARP_PIPE)
-    st_pipe_init(o)
-end
-id_bhvArenaSpring = hook_behavior(nil, OBJ_LIST_SURFACE, false, replace_spring, st_pipe_loop, "bhvArenaSpring")
 
 -- don't use these
 id_bhvArenaItem = hook_behavior(nil, OBJ_LIST_LEVEL, false, obj_mark_for_deletion, nil, "bhvArenaItem")
