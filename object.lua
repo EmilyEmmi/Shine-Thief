@@ -235,14 +235,13 @@ function lose_shine(index, dropType, attacker)
             shine.oForwardVel = 20
             shine.oMoveAngleYaw = math.random(0, 0xFFFF) -- random; any direction
         end
-        set_player_owned_shine(-1, ownedShine)
 
+        set_player_owned_shine(-1, ownedShine)
         network_send_object(shine, true)
     end
     return shine
 end
 
--- actual function thats ran
 function drop_shine(index, dropType, attacker)
     if not network_is_server() then
         -- send drop packet to server
