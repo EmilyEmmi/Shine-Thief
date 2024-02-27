@@ -30,7 +30,7 @@ function bhv_shine_init(o)
     o.oAnimState = -1
     o.oInteractStatus = 0
 
-    -- The shine works much better(?) if we send packets manually
+    -- By sending packets manually, we can only send packets when necessary
     network_init_object(o, false, {
         'oPosX',
         'oPosY',
@@ -75,35 +75,38 @@ function bhv_shine_loop(o)
             end
             send = true
         end
-    elseif m and get_player_owned_shine(m.playerIndex) == 0 and gGlobalSyncTable.gameState ~= 1 and (not sMario.spectator) and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently)
+    elseif m and get_player_owned_shine(m.playerIndex) == 0
+    and network_is_server() and gGlobalSyncTable.gameState ~= 1
+    and not sMario.spectator
+    and dist_between_objects(o, m.marioObj) <= 275
+    and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently) handled by the server
+        -- set shine owner to the collecter
         shineOwner = set_player_owned_shine(m.playerIndex, o.oBehParams)
         cur_obj_change_action(0)
-        
-        if m.playerIndex == 0 then -- the player who grabbed the shine sends a global message, to keep things synced
-            sentShineMessage = false
-            
-            m.invincTimer = 90 -- 1.5 seconds (this gets halved)
-            send = true
-        end
-
         cur_obj_become_intangible()
+        -- create popup
+        local np = gNetworkPlayers[m.playerIndex]
+        local playerColor = network_get_player_text_color_string(np.localIndex)
+        djui_popup_create_global(playerColor .. np.name .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
+        -- send object
+        send = true
     end
 
     -- for passing, setting the timer directly doesn't work for some reason- so we use action 3
-    if o.oAction == 3 then
+    if o.oAction == 3 and network_is_server() then
         cur_obj_change_action(1)
         o.oTimer = 30
     end
 
     -- handles bouncing and returning
-    if o.oAction == 0 and shineOwner == -1 then
+    if o.oAction == 0 and shineOwner == -1 and network_is_server() then
         cur_obj_become_tangible()
         cur_obj_update_floor()
         if is_hazard_floor(o.oFloorType) and cur_obj_lateral_dist_to_home() > 1 and (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND or gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then
             shine_return(o)
             cur_obj_become_intangible()
         end
-    elseif o.oAction == 1 then -- bouncing on ground
+    elseif o.oAction == 1 and network_is_server() then -- bouncing on ground
         local stepResult = object_step_without_floor_orient()
         cur_obj_update_floor()
         o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000 -- spin faster
@@ -143,8 +146,8 @@ function bhv_shine_loop(o)
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         end
 
-        if m.playerIndex == 0 then send = true end
-    elseif o.oAction == 2 then -- return to home if off stage (from star code)
+        send = true
+    elseif o.oAction == 2 and network_is_server() then -- return to home if off stage (from star code)
         obj_move_xyz_using_fvel_and_yaw(o)
         o.oStarSpawnUnkFC = o.oStarSpawnUnkFC + o.oVelY -- why?
         o.oPosY = o.oStarSpawnUnkFC + sins((o.oTimer * 0x8000) / 30) * 400 -- why?
@@ -159,11 +162,12 @@ function bhv_shine_loop(o)
             o.oForwardVel = 0
         end
 
-        if m.playerIndex == 0 then send = true end
+        send = true
     end
+
     o.oInteractStatus = 0
 
-    -- send data if we're holding the shine, or if we're the closest if no one is holding it
+    -- send object data to clients
     if send then
         network_send_object(o, true)
     end
@@ -182,24 +186,23 @@ function shine_return(shine)
     shine.oInteractStatus = 0
 end
 
-function lose_shine(index,dropType)
+function lose_shine(index, dropType, attacker)
     local m = gMarioStates[index]
     local np = gNetworkPlayers[index]
 
-    if index == 0 and sentShineMessage and dropType ~= 2 and dropType ~= 3 then -- stole shine message is set outside of here
+    if dropType ~= 2 and dropType ~= 3 then
         local playerColor = network_get_player_text_color_string(0)
-        if lastAttacker == 0 then
+        if attacker == nil then
             djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
         else
-            local aPlayerColor = network_get_player_text_color_string(lastAttacker)
-            local aNP = gNetworkPlayers[lastAttacker]
+            local aPlayerColor = network_get_player_text_color_string(attacker)
+            local aNP = gNetworkPlayers[attacker]
             local aName = aNP.name
             if aNP.connected then
                 djui_popup_create_global(string.format("%s\\#ffffff\\ made %s\\#ffffff\\\ndrop the \\#ffff40\\Shine\\#ffffff\\!",aPlayerColor..aName,playerColor..np.name), 1)
             else
                 djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
             end
-            lastAttacker = 0
         end
     elseif dropType == 1 then
         djui_popup_create("The \\#ffff40\\Shine\\#ffffff\\ was dropped!",1) -- on disconnect, don't use name
@@ -207,9 +210,9 @@ function lose_shine(index,dropType)
 
     local ownedShine = get_player_owned_shine(index)
     if ownedShine == 0 then return nil end
-    
+
     local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, ownedShine)
-    if shine then
+    if shine and network_is_server() then
         shine.oTimer = 0
         if dropType == 1 then -- fell off stage
             shine_return(shine)
@@ -233,8 +236,26 @@ function lose_shine(index,dropType)
             shine.oMoveAngleYaw = math.random(0, 0xFFFF) -- random; any direction
         end
         set_player_owned_shine(-1, ownedShine)
+
+        network_send_object(shine, true)
     end
     return shine
+end
+
+-- actual function thats ran
+function drop_shine(index, dropType, attacker)
+    if not network_is_server() then
+        -- send drop packet to server
+        network_send_to(1, true, {
+            id = PACKET_DROP_SHINE,
+            owner = network_global_index_from_local(index),
+            dropType = dropType,
+            attacker = network_global_index_from_local(attacker),
+        })
+    else
+        -- drop shine
+        lose_shine(index, dropType, attacker)
+    end
 end
 
 -- command to reset shine

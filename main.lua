@@ -44,7 +44,6 @@ lastAttackSteal = false
 local shineFrameCounter = 0
 local showTimeTimer = 0
 SPECIAL_BUTTON = (_G.OmmEnabled and L_TRIG) or Y_BUTTON
-sentShineMessage = false
 isRomHack = false
 localWinner = 0
 localWinner2 = -1
@@ -128,7 +127,7 @@ function spectator_mode()
     if sMario.spectator then
         if gGlobalSyncTable.gameState ~= 3 then
             if get_player_owned_shine(0) ~= 0 then
-                lose_shine(0, 1)
+                drop_shine(0, 1)
             end
             if sMario.team ~= 0 then
                 sMario.shineTimer = 0
@@ -259,24 +258,10 @@ function mario_update(m)
     end
 
     -- don't take damage, but drop shine if we get hit
-    if m.hurtCounter > 0 or m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP then
-        m.hurtCounter = 0
+    if m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP then
         if ownedShine ~= 0 and m.playerIndex == 0 then
-            if lastAttackSteal and lastAttacker ~= 0 then
-                network_send_to(lastAttacker, true, {
-                    id = PACKET_DIRECT_STEAL,
-                    victim = np.globalIndex,
-                    shineID = ownedShine,
-                })
-            else
-                lose_shine(0)
-            end
-            lastAttacker = 0
-            lastAttackSteal = false
+            drop_shine(0, 0)
         end
-    elseif m.playerIndex == 0 then
-        lastAttacker = 0
-        lastAttackSteal = false
     end
 
     -- for underground lake
@@ -362,15 +347,6 @@ function mario_update(m)
                         play_sound(SOUND_MENU_STAR_SOUND, m.marioObj.header.gfx.cameraToObject)
                     end
                 end
-
-                -- wait 5 frames to prevent message spam
-                if sentShineMessage == false and shineFrameCounter > 4 then
-                    network_send_include_self(true, {
-                        id = PACKET_GRAB_SHINE,
-                        grabbed = np.globalIndex,
-                    })
-                    sentShineMessage = true
-                end
             end
         else -- double shine works a bit different
             local mySMario = gPlayerSyncTable[0]
@@ -395,20 +371,6 @@ function mario_update(m)
                         play_sound(SOUND_MENU_STAR_SOUND, m.marioObj.header.gfx.cameraToObject)
                     end
                 end
-            elseif m.playerIndex == 0 then
-                -- wait 5 frames to prevent message spam
-                if sentShineMessage == false then
-                    if shineFrameCounter > 4 then
-                        network_send_include_self(true, {
-                            id = PACKET_GRAB_SHINE,
-                            grabbed = np.globalIndex,
-                        })
-                        sentShineMessage = true
-                        shineFrameCounter = 0
-                    else
-                        shineFrameCounter = shineFrameCounter + 1
-                    end
-                end
             end
         end
 
@@ -417,9 +379,9 @@ function mario_update(m)
             -- prevent dual ownership
             if get_player_owned_shine(0) == ownedShine then
                 if gMarioStates[0].forwardVel > m.forwardVel then -- the player moving faster gets priority
-                    lose_shine(m.playerIndex)
+                    drop_shine(m.playerIndex)
                 else
-                    lose_shine(0)
+                    drop_shine(0)
                 end
             end
             -- update team shine timer
@@ -438,13 +400,12 @@ function mario_update(m)
 
         -- pass shine in team mode
         if gGlobalSyncTable.teamMode ~= 0 and special_down(m) and m.framesSinceB < 5 then
-            lose_shine(m.playerIndex, 2)
+            drop_shine(m.playerIndex, 2)
         end
 
         set_mario_particle_flags(m, PARTICLE_SPARKLES, 0) -- sparkle if we have shine
     elseif m.playerIndex == 0 then
         shineFrameCounter = 0
-        sentShineMessage = false
         if sMario.shineTimer > gGlobalSyncTable.winTime - 5 then
             sMario.shineTimer = gGlobalSyncTable.winTime - 5 -- always have '5' seconds left (actually more)
         end
@@ -791,8 +752,13 @@ function on_pvp_attack(attacker, victim, cappyAttack)
                 local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, vOwnedShine)
                 if shine then
                     lastAttackSteal = true -- mark this attack as a steal
+                    return
                 end
             end
+        end
+
+        if vOwnedShine ~= 0 then
+            drop_shine(victim.playerIndex, 0, attacker.playerIndex)
         end
     end
 end
@@ -820,7 +786,7 @@ end
 -- drop shine on death (runs when falling)
 function on_death(m)
     if get_player_owned_shine(m.playerIndex) ~= 0 then
-        lose_shine(m.playerIndex, 1)
+        drop_shine(m.playerIndex, 1)
     end
     go_to_mario_start(m.playerIndex, gNetworkPlayers[m.playerIndex].globalIndex, true)
     return false
@@ -832,8 +798,7 @@ function on_pause_exit(exitToCastle)
     if gGlobalSyncTable.gameState ~= 3 then
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
         if get_player_owned_shine(0) ~= 0 then
-            sentShineMessage = true
-            lose_shine(0, 1)
+            drop_shine(0, 1)
         end
     end
     return false
@@ -1228,7 +1193,15 @@ function on_packet_grab_shine(data, self)
         local playerColor = network_get_player_text_color_string(np.localIndex)
         djui_popup_create(playerColor .. np.name .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
     end
+
     audio_sample_play(SOUND_SHINE_GRAB, gMarioStates[0].marioObj.header.gfx.cameraToObject, 1)
+end
+
+function on_packet_drop_shine(data, self)
+    local owner = network_local_index_from_global(data.owner)
+    local attacker = network_local_index_from_global(data.attacker)
+    local dropType = data.dropType
+    drop_shine(owner, dropType, attacker)
 end
 
 function on_packet_reset_shine(data, self)
@@ -1278,7 +1251,6 @@ function on_packet_direct_steal(data, self)
     local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, data.shineID)
     if shine then
         print("steal succeeded")
-        sentShineMessage = true
         local aNP = gNetworkPlayers[0]
         local aPlayerColor = network_get_player_text_color_string(0)
         local playerColor = network_get_player_text_color_string(np.localIndex)
@@ -1306,14 +1278,16 @@ hook_event(HOOK_ON_PACKET_RECEIVE, on_packet_receive)
 PACKET_VICTORY = 1
 PACKET_NEWGAME = 2
 PACKET_GRAB_SHINE = 3
-PACKET_RESET_SHINE = 4
-PACKET_SHOWTIME = 5
-PACKET_MOVE_SHINE = 6
-PACKET_DIRECT_STEAL = 7
+PACKET_DROP_SHINE = 4
+PACKET_RESET_SHINE = 5
+PACKET_SHOWTIME = 6
+PACKET_MOVE_SHINE = 7
+PACKET_DIRECT_STEAL = 8
 sPacketTable = {
     [PACKET_VICTORY] = on_packet_victory,
     [PACKET_NEWGAME] = on_packet_new_game,
     [PACKET_GRAB_SHINE] = on_packet_grab_shine,
+    [PACKET_DROP_SHINE] = on_packet_drop_shine,
     [PACKET_RESET_SHINE] = on_packet_reset_shine,
     [PACKET_SHOWTIME] = on_packet_showtime,
     [PACKET_MOVE_SHINE] = on_packet_move_shine,
