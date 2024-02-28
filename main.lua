@@ -258,10 +258,9 @@ function mario_update(m)
     end
 
     -- don't take damage, but drop shine if we get hit
-    if m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP then
-        if ownedShine ~= 0 and m.playerIndex == 0 then
-            drop_shine(0, 0)
-        end
+    if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP)
+    and ownedShine ~= 0 and m.playerIndex == 0 then
+        drop_shine(0, 0)
     end
 
     -- for underground lake
@@ -1198,10 +1197,12 @@ function on_packet_grab_shine(data, self)
 end
 
 function on_packet_drop_shine(data, self)
-    local owner = network_local_index_from_global(data.owner)
-    local attacker = network_local_index_from_global(data.attacker)
+    -- no need to convert global indexes to local indexes, as global indexes are
+    -- local indexes for the server
+    --local owner = network_local_index_from_global(data.owner)
+    --local attacker = network_local_index_from_global(data.attacker)
     local dropType = data.dropType
-    drop_shine(owner, dropType, attacker)
+    lose_shine(data.owner, dropType, data.attacker)
 end
 
 function on_packet_reset_shine(data, self)

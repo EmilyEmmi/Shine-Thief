@@ -57,17 +57,17 @@ function bhv_shine_loop(o)
 
     if shineOwner ~= -1 then -- go above owner's head
         local np = network_player_from_global_index(shineOwner)
-        o.oAction = 0
+        if network_is_server() then o.oAction = 0 end
         if np and np.connected and is_player_active(gMarioStates[np.localIndex]) then
             local ownerM = gMarioStates[np.localIndex]
             o.oTimer = 0
             o.oPosX = ownerM.pos.x
             o.oPosY = ownerM.pos.y + 250
             o.oPosZ = ownerM.pos.z
-            if np.localIndex == 0 then
+            if network_is_server() then
                 send = true
             end
-        else
+        elseif network_is_server() then
             print("Shine owner is not active, fixing issue")
             shineOwner = set_player_owned_shine(-1, o.oBehParams)
             if o.oAction == 0 then
@@ -212,6 +212,7 @@ function lose_shine(index, dropType, attacker)
     if ownedShine == 0 then return nil end
 
     local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, ownedShine)
+
     if shine and network_is_server() then
         shine.oTimer = 0
         if dropType == 1 then -- fell off stage
@@ -245,11 +246,15 @@ end
 function drop_shine(index, dropType, attacker)
     if not network_is_server() then
         -- send drop packet to server
+        local owner = nil
+        if index ~= nil then owner = network_global_index_from_local(index) end
+        local globalAttacker = nil
+        if attacker ~= nil then globalAttacker = network_global_index_from_local(attacker) end
         network_send_to(1, true, {
             id = PACKET_DROP_SHINE,
-            owner = network_global_index_from_local(index),
+            owner = owner,
             dropType = dropType,
-            attacker = network_global_index_from_local(attacker),
+            attacker = globalAttacker,
         })
     else
         -- drop shine
