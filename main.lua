@@ -259,12 +259,7 @@ function mario_update(m)
 
     -- drop the shine if we take damage
     if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP
-    or (m.hurtCounter > 0 and (m.marioObj.collidedObjInteractTypes & INTERACT_DAMAGE ~= 0
-    or m.marioObj.collidedObjInteractTypes & INTERACT_BOUNCE_TOP ~= 0
-    or m.marioObj.collidedObjInteractTypes & INTERACT_BULLY ~= 0
-    or m.marioObj.collidedObjInteractTypes & INTERACT_SNUFIT_BULLET ~= 0
-    or m.marioObj.collidedObjInteractTypes & INTERACT_CLAM_OR_BUBBA ~= 0
-    or m.marioObj.collidedObjInteractTypes & INTERACT_MR_BLIZZARD ~= 0)))
+    or (m.hurtCounter > 0 and (m.marioObj.collidedObjInteractTypes & INTERACT_PLAYER == 0)))
     and ownedShine ~= 0 and m.playerIndex == 0 then
         drop_shine(0, 0)
     end
