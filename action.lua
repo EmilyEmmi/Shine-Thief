@@ -124,15 +124,14 @@ function allow_interact(m,o,type)
     end
 end
 hook_event(HOOK_ALLOW_INTERACT, allow_interact)
--- set attacker on bomb interaction
+-- do pvp interaction for thrown bob-ombs
 --- @param m MarioState
 --- @param o Object
 function on_interact(m,o,type,value)
     if type == INTERACT_DAMAGE and get_id_from_behavior(o.behavior) == id_bhvThrownBobomb then
         local np = network_player_from_global_index(o.oObjectOwner or 0)
-        lastAttacker = np.localIndex
-        attackCooldown = 60
-        network_send_object(o, true)
+        on_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0])
+        network_send_object(o, true) -- sync explosion
     end
 end
 hook_event(HOOK_ON_INTERACT, on_interact)

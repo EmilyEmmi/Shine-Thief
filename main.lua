@@ -37,8 +37,7 @@ E_MODEL_SHINE = smlua_model_util_get_id("shine_geo") or E_MODEL_STAR
 MUSIC_SHINE_GET = audio_stream_load("shine.mp3")
 SOUND_SHINE_GRAB = audio_sample_load("grab.mp3")
 
-lastAttacker = 0
-lastAttackSteal = false
+cappyStealer = 0
 
 
 local shineFrameCounter = 0
@@ -261,7 +260,12 @@ function mario_update(m)
     if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP
     or m.hurtCounter > 0)
     and ownedShine ~= 0 and m.playerIndex == 0 then
-        drop_shine(0, 0)
+        if cappyStealer == 0 then
+            drop_shine(0, 0)
+        else
+            drop_shine(0, 3, cappyStealer)
+            cappyStealer = 0
+        end
     end
 
     -- for underground lake
@@ -744,12 +748,15 @@ hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
 --- @param victim MarioState
 function on_pvp_attack(attacker, victim, cappyAttack)
     if victim.playerIndex == 0 then
-        lastAttacker = attacker.playerIndex
         local vOwnedShine = get_player_owned_shine(0)
 
         if attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP or cappyAttack then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
-                return drop_shine(victim.playerIndex, 3, attacker.playerIndex) -- TODO: does not work for omm
+                if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
+                    cappyStealer = attacker.playerIndex
+                    return
+                end
+                return drop_shine(victim.playerIndex, 3, attacker.playerIndex)
             end
         end
 
@@ -1249,28 +1256,6 @@ function on_packet_showtime(data, self)
     set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
 end
 
-function on_packet_direct_steal(data, self)
-    local np = network_player_from_global_index(data.victim)
-    print("received direct steal from", data.victim)
-    local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, data.shineID)
-    if shine then
-        print("steal succeeded")
-        local aNP = gNetworkPlayers[0]
-        local aPlayerColor = network_get_player_text_color_string(0)
-        local playerColor = network_get_player_text_color_string(np.localIndex)
-        set_player_owned_shine(0, data.shineID)
-        set_player_owned_shine(np.localIndex, 0)
-        gMarioStates[0].invincTimer = 90
-        network_send_include_self(true, {
-            id = PACKET_GRAB_SHINE,
-            steal = true,
-        })
-        djui_popup_create_global(
-            string.format("%s\\#ffffff\\ stole %s's \\#ffff40\\Shine\\#ffffff\\!", aPlayerColor .. aNP.name,
-                playerColor .. np.name), 1)
-    end
-end
-
 function on_packet_receive(data)
     if sPacketTable[data.id] ~= nil then
         sPacketTable[data.id](data, false)
@@ -1286,7 +1271,6 @@ PACKET_DROP_SHINE = 4
 PACKET_RESET_SHINE = 5
 PACKET_SHOWTIME = 6
 PACKET_MOVE_SHINE = 7
-PACKET_DIRECT_STEAL = 8
 sPacketTable = {
     [PACKET_VICTORY] = on_packet_victory,
     [PACKET_NEWGAME] = on_packet_new_game,
@@ -1295,5 +1279,4 @@ sPacketTable = {
     [PACKET_RESET_SHINE] = on_packet_reset_shine,
     [PACKET_SHOWTIME] = on_packet_showtime,
     [PACKET_MOVE_SHINE] = on_packet_move_shine,
-    [PACKET_DIRECT_STEAL] = on_packet_direct_steal,
 }
