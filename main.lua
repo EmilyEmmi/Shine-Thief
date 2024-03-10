@@ -859,7 +859,7 @@ function shell_rush_shell(m)
                 end
             )
         end
-        set_mario_action(m, ACT_RIDING_SHELL_GROUND, 0)
+        set_mario_action(m, ACT_RIDING_SHELL_FALL, 0)
     end
 end
 

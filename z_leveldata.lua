@@ -36,6 +36,7 @@ levelData = {
         tex = "painting_01",
         name = "Bowser's Dark Domain",
         levelSize = 3000,
+        romhack_cam = true,
 
         startLocations = {
             [0] = { 0, 800, 2500 },
@@ -91,6 +92,7 @@ levelData = {
         tex = "painting_04",
         name = "The Ancient Pyramid",
         levelSize = 6708,
+        romhack_cam = true,
 
         startLocations = {
             [0] = { 0, 0, 3618 },
@@ -307,6 +309,7 @@ levelData = {
         name = "Bowser's Fiery Domain",
         shineDefaultHeight = 1389,
         levelSize = 3000,
+        romhack_cam = true,
 
         startLocations = {
             [0] = { 0, 2229, 2500 },
@@ -336,6 +339,7 @@ levelData = {
         tex = "painting_17",
         name = "Bowser's Sky Domain",
         levelSize = 3000,
+        romhack_cam = true,
 
         startLocations = {
             [0] = { 0, 800, 2500 },
@@ -469,8 +473,10 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
         set_mario_action(m, ACT_SPAWN_SPIN_AIRBORNE, 0)
         if localIndex == 0 then
             showGameResults = false
-            m.area.camera.defMode = CAMERA_MODE_ROM_HACK
-            set_camera_mode(m.area.camera, CAMERA_MODE_ROM_HACK, 0)
+            if thisLevel.romhack_cam then
+                m.area.camera.defMode = CAMERA_MODE_ROM_HACK
+                set_camera_mode(m.area.camera, CAMERA_MODE_ROM_HACK, 0)
+            end
             soft_reset_camera(m.area.camera)
             set_ttc_speed_setting(1)
             gMarioStates[0].numStars = 0
@@ -485,7 +491,7 @@ end
 
 -- forces rom hack camera
 function on_set_camera_mode(c, mode, frames)
-    if mode ~= CAMERA_MODE_ROM_HACK and mode ~= CAMERA_MODE_C_UP and mode ~= CAMERA_MODE_BEHIND_MARIO then
+    if thisLevel.romhack_cam and mode ~= CAMERA_MODE_ROM_HACK and mode ~= CAMERA_MODE_NEWCAM and mode ~= CAMERA_MODE_C_UP and mode ~= CAMERA_MODE_BEHIND_MARIO then
         set_camera_mode(c, CAMERA_MODE_ROM_HACK, 0)
         return false
     end

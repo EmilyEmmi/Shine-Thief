@@ -884,7 +884,8 @@ function render_menu()
     end
 end
 
--- menu controls
+local r_press = false
+-- menu controls + special action control
 ---@param m MarioState
 function menu_controls(m)
     if m.playerIndex ~= 0 then return end
@@ -915,8 +916,15 @@ function menu_controls(m)
         set_mario_action(m, ACT_DEBUG_FREE_MOVE, 0)
     end
 
+    -- if holding R, the special button acts like it should
     if not (inMenu or showGameResults) then
-        if m.controller.buttonDown & SPECIAL_BUTTON ~= 0 and m.controller.buttonDown & R_TRIG == 0 then
+        if m.controller.buttonPressed & R_TRIG ~= 0 then
+            m.controller.buttonPressed = m.controller.buttonPressed & ~R_TRIG
+            r_press = true
+        elseif m.controller.buttonDown & R_TRIG == 0 and r_press then
+            m.controller.buttonPressed = m.controller.buttonPressed | R_TRIG
+            r_press = false
+        elseif m.controller.buttonDown & SPECIAL_BUTTON ~= 0 and m.controller.buttonDown & R_TRIG == 0 then
             specialPressed = not specialDown
             specialDown = true
             m.controller.buttonPressed = m.controller.buttonPressed & ~SPECIAL_BUTTON
@@ -925,8 +933,7 @@ function menu_controls(m)
             specialPressed = false
             specialDown = false
             if m.controller.buttonDown & SPECIAL_BUTTON ~= 0 then
-                m.controller.buttonPressed = m.controller.buttonPressed & ~R_TRIG
-                m.controller.buttonDown = m.controller.buttonDown & ~R_TRIG
+                r_press = false
             end
         end
         return
