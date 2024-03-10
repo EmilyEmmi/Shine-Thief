@@ -35,7 +35,7 @@ local tip_general = {
     "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
     "Tip: A slide kick will instantly steal the Shine.",
     "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
-    "Mod created by EmilyEmmi, with some resources from NeedleN64 and Blocky.",
+    "Mod created by EmilyEmmi, with help from EmeraldLockdown and some resources from NeedleN64 and Blocky.",
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",

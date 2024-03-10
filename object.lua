@@ -84,10 +84,11 @@ function bhv_shine_loop(o)
         shineOwner = set_player_owned_shine(m.playerIndex, o.oBehParams)
         cur_obj_change_action(0)
         cur_obj_become_intangible()
-        -- create popup
-        local np = gNetworkPlayers[m.playerIndex]
-        local playerColor = network_get_player_text_color_string(np.localIndex)
-        djui_popup_create_global(playerColor .. np.name .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
+        -- create popup + sound
+        network_send_include_self(true, {
+            id = PACKET_GRAB_SHINE,
+            grabbed = gNetworkPlayers[m.playerIndex].globalIndex,
+        })
         -- send object
         send = true
     end
@@ -204,8 +205,12 @@ function lose_shine(index, dropType, attacker)
                 djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
             end
         end
-    elseif dropType == 1 then
-        djui_popup_create("The \\#ffff40\\Shine\\#ffffff\\ was dropped!",1) -- on disconnect, don't use name
+    elseif dropType == 3 then
+        network_send_include_self(true, {
+            id = PACKET_GRAB_SHINE,
+            grabbed = np.globalIndex,
+            stealer = gNetworkPlayers[attacker].globalIndex,
+        })
     end
 
     local ownedShine = get_player_owned_shine(index)
@@ -237,7 +242,11 @@ function lose_shine(index, dropType, attacker)
             shine.oMoveAngleYaw = math.random(0, 0xFFFF) -- random; any direction
         end
 
-        set_player_owned_shine(-1, ownedShine)
+        if dropType ~= 3 then
+            set_player_owned_shine(-1, ownedShine)
+        else
+            set_player_owned_shine(attacker, ownedShine)
+        end
         network_send_object(shine, true)
     end
     return shine

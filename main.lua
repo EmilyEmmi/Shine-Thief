@@ -749,11 +749,7 @@ function on_pvp_attack(attacker, victim, cappyAttack)
 
         if attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP or cappyAttack then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
-                local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, vOwnedShine)
-                if shine then
-                    lastAttackSteal = true -- mark this attack as a steal
-                    return
-                end
+                return drop_shine(victim.playerIndex, 3, attacker.playerIndex) -- TODO: does not work for omm
             end
         end
 
@@ -1188,10 +1184,16 @@ function on_packet_new_game(data, self)
 end
 
 function on_packet_grab_shine(data, self)
-    if not data.steal then
-        local np = network_player_from_global_index(data.grabbed)
-        local playerColor = network_get_player_text_color_string(np.localIndex)
+    local np = network_player_from_global_index(data.grabbed)
+    local playerColor = network_get_player_text_color_string(np.localIndex)
+    if not data.stealer then
         djui_popup_create(playerColor .. np.name .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
+    else
+        local aNP = network_player_from_global_index(data.stealer)
+        local aPlayerColor = network_get_player_text_color_string(np.localIndex)
+        djui_popup_create(
+            string.format("%s\\#ffffff\\ stole %s's \\#ffff40\\Shine\\#ffffff\\!", aPlayerColor .. aNP.name,
+                playerColor .. np.name), 1)
     end
 
     audio_sample_play(SOUND_SHINE_GRAB, gMarioStates[0].marioObj.header.gfx.cameraToObject, 1)
