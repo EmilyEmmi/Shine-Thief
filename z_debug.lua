@@ -242,12 +242,23 @@ function round_angle(msg)
 end
 
 -- debug free move
+DEBUG_INVIS = false
 function act_debug_free_move(m)
     if not m then
         return true
     end
     local action = ACT_IDLE
     local speed = (m.controller.buttonDown & B_BUTTON ~= 0) and 1 or 4
+
+    if m.controller.buttonPressed & X_BUTTON ~= 0 then
+        DEBUG_INVIS = not DEBUG_INVIS
+    end
+    if DEBUG_INVIS then
+        m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags | GRAPH_RENDER_INVISIBLE
+    else
+        m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags & ~GRAPH_RENDER_INVISIBLE
+    end
+
     set_mario_animation(m, MARIO_ANIM_A_POSE)
 
     if m.controller.buttonDown & A_BUTTON ~= 0 then
@@ -274,6 +285,7 @@ function act_debug_free_move(m)
             action = ACT_WATER_IDLE
         end
         set_mario_action(m, action, 0)
+        DEBUG_INVIS = false
     end
     return false
 end

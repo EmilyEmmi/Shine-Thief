@@ -37,7 +37,7 @@ E_MODEL_SHINE = smlua_model_util_get_id("shine_geo") or E_MODEL_STAR
 MUSIC_SHINE_GET = audio_stream_load("shine.mp3")
 SOUND_SHINE_GRAB = audio_sample_load("grab.mp3")
 
-cappyStealer = 0
+local cappyStealer = 0
 
 
 local shineFrameCounter = 0
@@ -337,8 +337,7 @@ function mario_update(m)
                 end
                 if gGlobalSyncTable.gameState == 2 then
                     if shineFrameCounter >= 60 or (shineFrameCounter >= 30 and sMario.shineTimer < gGlobalSyncTable.winTime - 3) then -- it's 2 seconds per second near the end
-                        sMario.shineTimer = sMario.shineTimer +
-                            1                                                                                                         -- increment timer
+                        sMario.shineTimer = sMario.shineTimer + 1                                                                                                         -- increment timer
                         shineFrameCounter = 0
                     end
                     if sMario.shineTimer > gGlobalSyncTable.winTime then -- victory
@@ -403,7 +402,7 @@ function mario_update(m)
         end
 
         -- pass shine in team mode
-        if gGlobalSyncTable.teamMode ~= 0 and special_down(m) and m.framesSinceB < 5 then
+        if m.playerIndex == 0 and gGlobalSyncTable.teamMode ~= 0 and special_down(m) and m.framesSinceB < 5 then
             drop_shine(m.playerIndex, 2)
         end
 
@@ -826,7 +825,7 @@ function shell_rush_shell(m)
                 set_camera_mode(m.area.camera, CAMERA_MODE_FREE_ROAM, 1)
             end
         end
-    elseif m.prevAction ~= ACT_RIDING_SHELL_GROUND then
+    elseif (m.action & ACT_FLAG_INVULNERABLE) == 0 and (m.action & ACT_FLAG_INTANGIBLE) == 0 then
         spawnShell = 1
     end
 
@@ -912,6 +911,7 @@ function on_sync_valid()
         set_environment_region(0, -10000)
         set_environment_region(1, -10000)
         set_environment_region(2, -10000)
+        set_environment_region(3, -10000)
     end
 
     if gGlobalSyncTable.gameState ~= 0 then

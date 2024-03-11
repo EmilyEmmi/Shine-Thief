@@ -39,7 +39,7 @@ local tip_general = {
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",
-    "Tip: In Team Mode, press B while holding Y to pass the Shine.",
+    "Tip: In Team Mode, press B while holding SPECIAL_BUTTON to pass the Shine.",
     "Tip: After 5 minutes, the shine timer will be halved.",
     "Tip: You can enter Spectator Mode in the menu.",
 }
@@ -186,6 +186,8 @@ function on_hud_render()
     else
         hud_hide()
     end
+
+    if DEBUG_INVIS then return end
 
     -- render starting locations
     if DEBUG_MODE and thisLevel.startLocations then
@@ -611,7 +613,7 @@ function enter_menu(id, option, back)
             return
         end
 
-        if type(gGlobalSyncTable.gameLevel) == "number" and gGlobalSyncTable.gameLevel > 1 and gGlobalSyncTable.gameLevel < #levelData then
+        if type(gGlobalSyncTable.gameLevel) == "number" and gGlobalSyncTable.gameLevel > 0 and gGlobalSyncTable.gameLevel <= #levelData then
             set_menu_option(3, 1, gGlobalSyncTable.gameLevel)
         elseif isRomHack then
             set_menu_option(3, 1, 1) -- whatever the first entry is

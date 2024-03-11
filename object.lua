@@ -93,10 +93,10 @@ function bhv_shine_loop(o)
         send = true
     end
 
-    -- for passing, setting the timer directly doesn't work for some reason- so we use action 3
+    -- passing action
     if o.oAction == 3 and network_is_server() then
         cur_obj_change_action(1)
-        o.oTimer = 30
+        o.oTimer = 15
     end
 
     -- handles bouncing and returning
@@ -225,9 +225,34 @@ function lose_shine(index, dropType, attacker)
         elseif dropType == 2 then -- pass
             shine.oVelY = 0
             shine.oAction = 3
-            shine.oForwardVel = m.forwardVel + 25
-            shine.oMoveAngleYaw = m.intendedYaw
-            shine.oTimer = 30
+
+            -- pass to closest teammate
+            local vel = 50
+            local angle = m.intendedYaw
+            local yDist = 0
+            local team = gPlayerSyncTable[m.playerIndex].team
+            local minDist = 3000
+            for i=0,MAX_PLAYERS-1 do
+                if m.playerIndex ~= i and gPlayerSyncTable[i].team == team then
+                    local player = obj_get_nearest_object_with_behavior_id(m.marioObj, id_bhvGoomba)--gMarioStates[i].marioObj
+                    local dist = dist_between_objects(m.marioObj, player)
+                    if minDist > dist then
+                        minDist = dist
+                        angle = obj_angle_to_object(shine, player)
+                        yDist = shine.oPosY - gMarioStates[i].pos.y
+                        yDist = shine.oPosY - player.oPosY
+                    end
+                end
+            end
+
+            -- calculate velocity for perfect shot
+            if yDist > 0 then
+                vel = math.min((minDist / math.sqrt(0.8 * yDist)), vel)
+            end
+            
+            shine.oForwardVel = vel
+            shine.oMoveAngleYaw = angle
+            shine.oTimer = 15
             shine.oInteractStatus = 0
             obj_become_tangible(shine)
         elseif dropType == 3 then -- steal
@@ -320,12 +345,20 @@ function st_pipe_loop(o)
     if m and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
         local pair = obj_get_first_with_behavior_id_and_field_s32(id_bhvSTPipe, 0x40, o.oBehParams2ndByte) -- 0x40 is "oBehParams"
         if pair then
-            drop_and_set_mario_action(m, ACT_TRIPLE_JUMP, 1)
+            if pair.oFaceAnglePitch >= 0 then
+                drop_and_set_mario_action(m, ACT_TRIPLE_JUMP, 1)
+                m.pos.y = pair.oPosY + 160
+                m.vel.y = 65
+            else
+                drop_and_set_mario_action(m, ACT_FREEFALL, 0)
+                mario_set_forward_vel(m, 0)
+                m.pos.y = pair.oPosY - 320
+                m.vel.y = math.min(0, m.vel.y)
+            end
+
             m.pos.x = pair.oPosX
-            m.pos.y = pair.oPosY + 160
             m.peakHeight = m.pos.y
             m.pos.z = pair.oPosZ
-            m.vel.y = 65
             m.faceAngle.y = pair.oFaceAngleYaw
             --m.actionTimer = 11
             cur_obj_play_sound_1(SOUND_MENU_ENTER_PIPE)
@@ -484,9 +517,15 @@ id_bhvSTShell = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_shell_init, cust
 
 -- fix bowser
 function custom_bowser_loop(o)
-    if gGlobalSyncTable.gameState == 1 then
+    if gGlobalSyncTable.gameState == 1 or o.oAction == 5 then
         cur_obj_change_action(14)
         o.oForwardVel = 0
+    elseif o.oAction == 2 and o.oSubAction == 1 and o.oTimer > 30 then -- fix softlock?
+        o.oMoveAngleYaw = o.oBowserAngleToCentre
+        o.oVelY = 150
+        o.oBowserUnk1AC = 0xFF
+        o.oBowserUnkF8 = 0
+        o.oSubAction = 2
     end
 end
 hook_behavior(id_bhvBowser, OBJ_LIST_GENACTOR, false, nil, custom_bowser_loop, "id_bhvBowser")

@@ -1,6 +1,22 @@
 -- This stores the information for individual levels (such as start locations)
 levelData = {
-    [2] = {
+    {
+        level = LEVEL_BOB,
+        course = COURSE_BOB,
+        area = 1,
+        tex = "painting_05",
+
+        startLocations = {
+            [0] = { -6526, 1000, 6431 },
+        },
+        shineStart = { 283, 1133, 1930 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4470, 0,    6730, 0, 1, 0x0, 0x6000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3732,  3072, 269,  1, 0, 0,   2615 },
+        },
+    },
+    {
         level = LEVEL_WF,
         course = COURSE_WF,
         area = 1,
@@ -29,37 +45,66 @@ levelData = {
 
         shineStart = { 307, 5520, 7 },
     },
-    [17] = {
-        level = LEVEL_BOWSER_1,
-        course = COURSE_BITDW,
-        area = 1,
-        tex = "painting_01",
-        name = "Bowser's Dark Domain",
-        levelSize = 3000,
-        romhack_cam = true,
+    {
+        level = LEVEL_JRB,
+        course = COURSE_JRB,
+        area = 2,
+        noWater = true,
+        tex = "painting_15",
+        name = "Inside The Jolly Roger",
+        levelSize = 3700,
 
         startLocations = {
-            [0] = { 0, 800, 2500 },
-            [1] = { 957, 800, 2310 },
-            [2] = { 1768, 800, 1768 },
-            [3] = { 2310, 800, 957 },
-            [4] = { 2500, 800, 0 },
-            [5] = { 2310, 800, -957 },
-            [6] = { 1768, 800, -1768 },
-            [7] = { 957, 800, -2310 },
-            [8] = { 0, 800, -2500 },
-            [9] = { -957, 800, -2310 },
-            [10] = { -1768, 800, -1768 },
-            [11] = { -2310, 800, -957 },
-            [12] = { -2500, 800, 0 },
-            [13] = { -2310, 800, 957 },
-            [14] = { -1768, 800, 1768 },
-            [15] = { -957, 800, 2310 },
+            [0] = { 39, -191, -1119 },
         },
-
-        shineStart = { 0, 467, 0 },
+        shineStart = { 43, 1418, 2958 },
     },
-    [6] = {
+    {
+        level = LEVEL_CCM,
+        course = COURSE_CCM,
+        area = 1,
+        tex = "painting_06",
+        levelSize = 6400,
+
+        startLocations = {
+            [0] = { -1406, 3560, -2383 },
+        },
+        shineStart = { -477, 3631, -941 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1861, 2826,  -389, 0, 1, 0, -25100 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3317,  -4694, -147, 1, 0, 0, -3600 },
+        },
+    },
+    {
+        level = LEVEL_HMC,
+        course = COURSE_HMC,
+        area = 1,
+        tex = "painting_11",
+        noWater = true,
+        name = "Deep Cave",
+        room = 6,
+        maxHeight = -10,
+
+        startLocations = {
+            [0] = { -790, -3279, 6290 },
+        },
+        shineStart = { -3540, -4119, 3540 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -420,  -4150, 6634, 0,   0, 0x4000, 0xA000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -300,  -4965, 2480, 0,   0, 0x0,    0 },
+            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -3540, -6327, 5400, 140, 0, 0x0, 0x0000},
+            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -2225, -6327, 4855, 140, 0, 0x0,    0x2000 },
+            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -1680, -6327, 3540, 140, 0, 0x0, 0x4000},
+            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -4855, -6327, 4855, 140, 0, 0x0,    0x6000 },
+            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -3540, -6327, 1680, 140, 0, 0x0, 0x8000},
+            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -4855, -6327, 2225, 140, 0, 0x0,    0xA000 },
+            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -5400, -6327, 3540, 140, 0, 0x0, 0xC000},
+            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -2225, -6327, 2225, 140, 0, 0x0,    0xE000 },
+        },
+    },
+    {
         level = LEVEL_LLL,
         course = COURSE_LLL,
         area = 1,
@@ -74,7 +119,7 @@ levelData = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, 505, 0, 0, 0, 0, 0x4000 },
         },
     },
-    [7] = {
+    {
         level = LEVEL_SSL,
         course = COURSE_SSL,
         area = 1,
@@ -85,7 +130,7 @@ levelData = {
         },
         shineStart = { -2047, 1200, -519 },
     },
-    [8] = {
+    {
         level = LEVEL_SSL,
         course = COURSE_SSL,
         area = 2,
@@ -104,86 +149,18 @@ levelData = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, 510,  -300, 0, 0, 0x4000 },
         },
     },
-    [1] = {
-        level = LEVEL_BOB,
-        course = COURSE_BOB,
+    {
+        level = LEVEL_SL,
+        course = COURSE_SL,
         area = 1,
-        tex = "painting_05",
+        tex = "painting_13",
 
         startLocations = {
-            [0] = { -6526, 1000, 6431 },
+            [0] = { 5241, 2024, 143 },
         },
-        shineStart = { 283, 1133, 1930 },
-
-        objLocations = {
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4470, 0,    6730, 0, 1, 0x0, 0x6000 },
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3732,  3072, 269,  1, 0, 0,   2615 },
-        },
+        shineStart = { 304, 1512, -4543 },
     },
-    [4] = {
-        level = LEVEL_CCM,
-        course = COURSE_CCM,
-        area = 1,
-        tex = "painting_06",
-        levelSize = 6400,
-
-        startLocations = {
-            [0] = { -1406, 3560, -2383 },
-        },
-        shineStart = { -477, 3631, -941 },
-
-        objLocations = {
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1861, 2826,  -389, 0, 1, 0, -25100 },
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3317,  -4694, -147, 1, 0, 0, -3600 },
-        },
-    },
-    [10] = {
-        level = LEVEL_WDW,
-        course = COURSE_WDW,
-        area = 1,
-        noWater = true,
-        tex = "painting_07",
-
-        startLocations = {
-            [0] = { 3387, 1128, 390 },
-        },
-        shineStart = { 718, 4192, 94 },
-
-        objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3880 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3880 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3880 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        2869,  0,    -718,  0, 1, 0, -40 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3623, 3584, -3623, 1, 0, 0, 7527 },
-        },
-    },
-    [12] = {
-        level = LEVEL_TTM,
-        course = COURSE_TTM,
-        area = 1,
-        tex = "painting_08",
-        noWater = true,
-
-        startLocations = {
-            [0] = { 95, -3332, 5693 },
-        },
-        shineStart = { -3215, -2543, -3750 },
-
-        objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3281, -1510, 3541, 0, 0, 0, 24576 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3800, -1510, 3000, 0, 0, 0, 24576 },
-        },
-    },
-    [11] = {
+    {
         level = LEVEL_WDW,
         course = COURSE_WDW,
         area = 2,
@@ -217,7 +194,53 @@ levelData = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3010, -700, -1590, 0, 0, 0x4000, 0 },
         },
     },
-    [13] = {
+    {
+        level = LEVEL_WDW,
+        course = COURSE_WDW,
+        area = 1,
+        noWater = true,
+        tex = "painting_07",
+
+        startLocations = {
+            [0] = { 3387, 1128, 390 },
+        },
+        shineStart = { 718, 4192, 94 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3880 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3880 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3880 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        2869,  0,    -718,  0, 1, 0, -40 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3623, 3584, -3623, 1, 0, 0, 7527 },
+        },
+    },
+    {
+        level = LEVEL_TTM,
+        course = COURSE_TTM,
+        area = 1,
+        tex = "painting_08",
+        noWater = true,
+
+        startLocations = {
+            [0] = { 95, -3332, 5693 },
+        },
+        shineStart = { -3215, -2543, -3750 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3281, -1510, 3541, 0, 0, 0, 24576 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3800, -1510, 3000, 0, 0, 0, 24576 },
+        },
+    },
+    {
         level = LEVEL_THI,
         course = COURSE_THI,
         area = 2,
@@ -231,7 +254,91 @@ levelData = {
         },
         shineStart = { 3, 1327, -448 },
     },
-    [16] = {
+    {
+        level = LEVEL_THI,
+        course = COURSE_THI,
+        area = 1,
+        tex = "painting_21",
+        noWater = true,
+        name = "Huge Island",
+
+        startLocations = {
+            [0] = { -1800, 3202, -240 },
+        },
+        shineStart = { 0, 4051, -1530 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -3040, 512,   -3970, 0, 1, 0x0, 0x0 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5750, -3580, 2400,  1, 0, 0x0, 0x0 },
+        },
+    },
+    {
+        level = LEVEL_THI,
+        course = COURSE_THI,
+        area = 3,
+        tex = "painting_20",
+        name = "Wiggler's Cave",
+        levelSize = 2000,
+
+        startLocations = {
+            [0] = { 727, 1024, 1230 },
+            [1] = { 955, 1024, 1003 },
+            [2] = { 1658, 1024, 284 },
+            [3] = { 1235, 1024, -626 },
+            [4] = { 896, 1024, -883 },
+            [5] = { 94, 1024, -1391 },
+            [6] = { -351, 1024, -1286 },
+            [7] = { -516, 768, -427 },
+            [8] = { -1567, 512, -1829 },
+            [9] = { -1412, 512, -1120 },
+            [10] = { -1861, 512, -1501 },
+            [11] = { -1304, 1024, 276 },
+            [12] = { -1824, 1024, 286 },
+            [13] = { -1695, 1434, 1527 },
+            [14] = { -1110, 1434, 1407 },
+            [15] = { -387, 1434, 984 },
+        },
+        shineStart = { 240, 1118, 189 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 240, 932, 189, 0, 0, 0x0, 0x0 },
+        },
+    },
+    {
+        level = LEVEL_RR,
+        course = COURSE_RR,
+        area = 1,
+        tex = "painting_18",
+
+        startLocations = {
+            [0] = { 1822, -116, -50 },
+        },
+        shineStart = { -506, -956, -50 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5137, -1782, -42,   0, 1, 0, 0 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4222, 3379,  -3052, 1, 0, 0, 32768 },
+        },
+    },
+    {
+        level = LEVEL_CASTLE_GROUNDS,
+        course = 0,
+        area = 1,
+        tex = "painting_14",
+        noWater = true,
+
+        startLocations = {
+            [0] = { -1328, 1260, 4664 },
+        },
+        shineStart = { 0, 1066, -1200 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3383, -550, -2025, 0, 0, 0 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1370,  3174, -4020, 0, 1, 0x0, -0x8000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -5350, 343,  50,    1, 0, 0x0, 0x4000 },
+        },
+    },
+    {
         level = LEVEL_CASTLE_COURTYARD,
         course = 0,
         area = 1,
@@ -259,48 +366,53 @@ levelData = {
         },
         shineStart = { 0, 110, -1332 },
     },
-    [3] = {
-        level = LEVEL_JRB,
-        course = COURSE_JRB,
-        area = 2,
-        noWater = true,
-        tex = "painting_15",
-        name = "Inside The Jolly Roger",
-        levelSize = 3700,
-
-        startLocations = {
-            [0] = { 39, -191, -1119 },
-        },
-        shineStart = { 43, 1418, 2958 },
-    },
-    [9] = {
-        level = LEVEL_SL,
-        course = COURSE_SL,
+    {
+        level = LEVEL_PSS,
+        course = COURSE_PSS,
         area = 1,
-        tex = "painting_13",
+        tex = "painting_19",
 
         startLocations = {
-            [0] = { 5241, 2024, 143 },
+            [0] = { 5632, 7144, -5631 },
         },
-        shineStart = { 304, 1512, -4543 },
-    },
-    [14] = {
-        level = LEVEL_RR,
-        course = COURSE_RR,
-        area = 1,
-        tex = "painting_18",
-
-        startLocations = {
-            [0] = { 1822, -116, -50 },
-        },
-        shineStart = { -506, -956, -50 },
+        shineStart = { -6350, -4324, 5670 },
 
         objLocations = {
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5137, -1782, -42,   0, 1, 0, 0 },
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4222, 3379,  -3052, 1, 0, 0, 32768 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 5632,  7666,  -5631, 0, 1, -0x8000, -0x4000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5550, -4587, 5710,  1, 0, 0x0,     -0x4000 },
         },
     },
-    [18] = {
+    {
+        level = LEVEL_BOWSER_1,
+        course = COURSE_BITDW,
+        area = 1,
+        tex = "painting_01",
+        name = "Bowser's Dark Domain",
+        levelSize = 3000,
+        romhack_cam = true,
+
+        startLocations = {
+            [0] = { 0, 800, 2500 },
+            [1] = { 957, 800, 2310 },
+            [2] = { 1768, 800, 1768 },
+            [3] = { 2310, 800, 957 },
+            [4] = { 2500, 800, 0 },
+            [5] = { 2310, 800, -957 },
+            [6] = { 1768, 800, -1768 },
+            [7] = { 957, 800, -2310 },
+            [8] = { 0, 800, -2500 },
+            [9] = { -957, 800, -2310 },
+            [10] = { -1768, 800, -1768 },
+            [11] = { -2310, 800, -957 },
+            [12] = { -2500, 800, 0 },
+            [13] = { -2310, 800, 957 },
+            [14] = { -1768, 800, 1768 },
+            [15] = { -957, 800, 2310 },
+        },
+
+        shineStart = { 0, 467, 0 },
+    },
+    {
         level = LEVEL_BOWSER_2,
         course = COURSE_BITFS,
         area = 1,
@@ -332,7 +444,7 @@ levelData = {
 
         shineStart = { 0, 1389, 0 },
     },
-    [19] = {
+    {
         level = LEVEL_BOWSER_3,
         course = COURSE_BITS,
         area = 1,
@@ -361,52 +473,6 @@ levelData = {
         },
 
         shineStart = { 0, 467, 0 },
-    },
-    [15] = {
-        level = LEVEL_CASTLE_GROUNDS,
-        course = 0,
-        area = 1,
-        tex = "painting_14",
-        noWater = true,
-
-        startLocations = {
-            [0] = { -1328, 1260, 4664 },
-        },
-        shineStart = { 0, 1066, -1200 },
-
-        objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3383, -550, -2025, 0, 0, 0 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1370,  3174, -4020, 0, 1, 0x0, -0x8000 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -5350, 343,  50,    1, 0, 0x0, 0x4000 },
-        },
-    },
-    [5] = {
-        level = LEVEL_HMC,
-        course = COURSE_HMC,
-        area = 1,
-        tex = "painting_11",
-        noWater = true,
-        name = "Deep Cave", -- TODO: Change picture to match
-        room = 6,
-        maxHeight = -10,
-
-        startLocations = {
-            [0] = { -790, -3279, 6290 },
-        },
-        shineStart = { -3540, -4119, 3540 },
-
-        objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -420,  -4150, 6634, 0,   0, 0x4000, 0xA000 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -300,  -4965, 2480, 0,   0, 0x0,    0 },
-            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -3540, -6327, 5400, 140, 0, 0x0, 0x0000},
-            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -2225, -6327, 4855, 140, 0, 0x0,    0x2000 },
-            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -1680, -6327, 3540, 140, 0, 0x0, 0x4000},
-            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -4855, -6327, 4855, 140, 0, 0x0,    0x6000 },
-            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -3540, -6327, 1680, 140, 0, 0x0, 0x8000},
-            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -4855, -6327, 2225, 140, 0, 0x0,    0xA000 },
-            --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -5400, -6327, 3540, 140, 0, 0x0, 0xC000},
-            { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -2225, -6327, 2225, 140, 0, 0x0,    0xE000 },
-        },
     },
 }
 
@@ -556,35 +622,35 @@ course_to_level = {
     [30] = LEVEL_CASTLE_COURTYARD,
 }
 level_to_course = {
-    [LEVEL_CASTLE_GROUNDS] = COURSE_NONE, -- Course 0
-    [LEVEL_CASTLE] = COURSE_NONE, -- Course 0
+    [LEVEL_CASTLE_GROUNDS] = COURSE_NONE,   -- Course 0
+    [LEVEL_CASTLE] = COURSE_NONE,           -- Course 0
     [LEVEL_CASTLE_COURTYARD] = COURSE_NONE, -- Course 0
-    [LEVEL_BOB] = COURSE_BOB, -- Course 1
-    [LEVEL_WF] = COURSE_WF, -- Course 2
-    [LEVEL_JRB] = COURSE_JRB, -- Course 3
-    [LEVEL_CCM] = COURSE_CCM, -- Course 4
-    [LEVEL_BBH] = COURSE_BBH, -- Course 5
-    [LEVEL_HMC] = COURSE_HMC, -- Course 6
-    [LEVEL_LLL] = COURSE_LLL, -- Course 7
-    [LEVEL_SSL] = COURSE_SSL, -- Course 8
-    [LEVEL_DDD] = COURSE_DDD, -- Course 9
-    [LEVEL_SL] = COURSE_SL, -- Course 10
-    [LEVEL_WDW] = COURSE_WDW, -- Course 11
-    [LEVEL_TTM] = COURSE_TTM, -- Course 12
-    [LEVEL_THI] = COURSE_THI, -- Course 13
-    [LEVEL_TTC] = COURSE_TTC, -- Course 14
-    [LEVEL_RR] = COURSE_RR, -- Course 15
-    [LEVEL_BITDW] = COURSE_BITDW, -- Course 16
-    [LEVEL_BOWSER_1] = COURSE_BITDW, -- Course 16
-    [LEVEL_BITFS] = COURSE_BITFS, -- Course 17
-    [LEVEL_BOWSER_2] = COURSE_BITFS, -- Course 17
-    [LEVEL_BITS] = COURSE_BITS, -- Course 18
-    [LEVEL_BOWSER_3] = COURSE_BITS, -- Course 18
-    [LEVEL_PSS] = COURSE_PSS, -- Course 19
-    [LEVEL_COTMC] = COURSE_COTMC, -- Course 20
-    [LEVEL_TOTWC] = COURSE_TOTWC, -- Course 21
-    [LEVEL_VCUTM] = COURSE_VCUTM, -- Course 22
-    [LEVEL_WMOTR] = COURSE_WMOTR, -- Course 23
-    [LEVEL_SA] = COURSE_SA, -- Course 24
-    [LEVEL_ENDING] = COURSE_CAKE_END, -- Course 25 (will not appear in MiniHunt)
-  }
+    [LEVEL_BOB] = COURSE_BOB,               -- Course 1
+    [LEVEL_WF] = COURSE_WF,                 -- Course 2
+    [LEVEL_JRB] = COURSE_JRB,               -- Course 3
+    [LEVEL_CCM] = COURSE_CCM,               -- Course 4
+    [LEVEL_BBH] = COURSE_BBH,               -- Course 5
+    [LEVEL_HMC] = COURSE_HMC,               -- Course 6
+    [LEVEL_LLL] = COURSE_LLL,               -- Course 7
+    [LEVEL_SSL] = COURSE_SSL,               -- Course 8
+    [LEVEL_DDD] = COURSE_DDD,               -- Course 9
+    [LEVEL_SL] = COURSE_SL,                 -- Course 10
+    [LEVEL_WDW] = COURSE_WDW,               -- Course 11
+    [LEVEL_TTM] = COURSE_TTM,               -- Course 12
+    [LEVEL_THI] = COURSE_THI,               -- Course 13
+    [LEVEL_TTC] = COURSE_TTC,               -- Course 14
+    [LEVEL_RR] = COURSE_RR,                 -- Course 15
+    [LEVEL_BITDW] = COURSE_BITDW,           -- Course 16
+    [LEVEL_BOWSER_1] = COURSE_BITDW,        -- Course 16
+    [LEVEL_BITFS] = COURSE_BITFS,           -- Course 17
+    [LEVEL_BOWSER_2] = COURSE_BITFS,        -- Course 17
+    [LEVEL_BITS] = COURSE_BITS,             -- Course 18
+    [LEVEL_BOWSER_3] = COURSE_BITS,         -- Course 18
+    [LEVEL_PSS] = COURSE_PSS,               -- Course 19
+    [LEVEL_COTMC] = COURSE_COTMC,           -- Course 20
+    [LEVEL_TOTWC] = COURSE_TOTWC,           -- Course 21
+    [LEVEL_VCUTM] = COURSE_VCUTM,           -- Course 22
+    [LEVEL_WMOTR] = COURSE_WMOTR,           -- Course 23
+    [LEVEL_SA] = COURSE_SA,                 -- Course 24
+    [LEVEL_ENDING] = COURSE_CAKE_END,       -- Course 25 (will not appear in MiniHunt)
+}
