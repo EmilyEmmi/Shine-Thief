@@ -298,6 +298,7 @@ function on_hud_render()
         end
         djui_hud_set_font(FONT_MENU)
         local subText3 = tip_general[tipNum]
+        subText3 = string.gsub(subText3, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
         local scale3 = 0.5
         y = screenHeight - scale3 * 70
         width = djui_hud_measure_text(subText3) * scale3
@@ -600,8 +601,14 @@ function enter_menu(id, option, back)
     -- redirect to/from vote menu
     if id == 2 and gGlobalSyncTable.mapChoice == 1 then
         id = 6
+        if option then
+            option = option + 1
+        end
     elseif id == 6 and gGlobalSyncTable.mapChoice ~= 1 then
         id = 2
+        if option then
+            option = option - 1
+        end
     end
 
     menuID = id or 1

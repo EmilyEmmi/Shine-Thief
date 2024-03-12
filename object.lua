@@ -108,8 +108,16 @@ function bhv_shine_loop(o)
             cur_obj_become_intangible()
         end
     elseif o.oAction == 1 and network_is_server() then -- bouncing on ground
+        local prevY = o.oPosY
         local stepResult = object_step_without_floor_orient()
         cur_obj_update_floor()
+
+        -- prevent ceiling clip
+        if o.oFloorHeight > prevY and o.oVelY > 0 then
+            o.oPosY = prevY
+            o.oVelY = 0
+        end
+
         o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000 -- spin faster
 
         if o.oTimer >= 10 then
@@ -188,11 +196,14 @@ function shine_return(shine)
 end
 
 function lose_shine(index, dropType, attacker)
+    local ownedShine = get_player_owned_shine(index)
+    if ownedShine == 0 then return nil end
+
     local m = gMarioStates[index]
     local np = gNetworkPlayers[index]
 
     if dropType ~= 2 and dropType ~= 3 then
-        local playerColor = network_get_player_text_color_string(0)
+        local playerColor = network_get_player_text_color_string(index)
         if attacker == nil then
             djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
         else
@@ -213,9 +224,6 @@ function lose_shine(index, dropType, attacker)
         })
     end
 
-    local ownedShine = get_player_owned_shine(index)
-    if ownedShine == 0 then return nil end
-
     local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, ownedShine)
 
     if shine and network_is_server() then
@@ -234,13 +242,12 @@ function lose_shine(index, dropType, attacker)
             local minDist = 3000
             for i=0,MAX_PLAYERS-1 do
                 if m.playerIndex ~= i and gPlayerSyncTable[i].team == team then
-                    local player = obj_get_nearest_object_with_behavior_id(m.marioObj, id_bhvGoomba)--gMarioStates[i].marioObj
+                    local player = gMarioStates[i].marioObj
                     local dist = dist_between_objects(m.marioObj, player)
                     if minDist > dist then
                         minDist = dist
                         angle = obj_angle_to_object(shine, player)
                         yDist = shine.oPosY - gMarioStates[i].pos.y
-                        yDist = shine.oPosY - player.oPosY
                     end
                 end
             end
@@ -350,7 +357,7 @@ function st_pipe_loop(o)
                 m.pos.y = pair.oPosY + 160
                 m.vel.y = 65
             else
-                drop_and_set_mario_action(m, ACT_FREEFALL, 0)
+                mario_drop_held_object(m)
                 mario_set_forward_vel(m, 0)
                 m.pos.y = pair.oPosY - 320
                 m.vel.y = math.min(0, m.vel.y)
@@ -366,6 +373,7 @@ function st_pipe_loop(o)
                 -- TODO: Set camera yaw to behind mario
                 soft_reset_camera(m.area.camera)
                 center_rom_hack_camera()
+                m.collidedObjInteractTypes = 0
             end
         end
         o.oInteractStatus = 0

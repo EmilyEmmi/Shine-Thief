@@ -23,7 +23,7 @@ gGlobalSyncTable.wonMap = -1
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
-gServerSettings.playerInteractions = PLAYER_INTERACTIONS_PVP
+gServerSettings.playerInteractions = PLAYER_INTERACTIONS_SOLID
 gServerSettings.stayInLevelAfterStar = 0
 
 gLevelValues.fixCollisionBugs = true
@@ -147,6 +147,8 @@ end
 -- Various movement tweaks
 --- @param m MarioState
 function before_phys_step(m)
+    if m.action == ACT_SHOT_FROM_CANNON then return end
+    
     local sMario = gPlayerSyncTable[m.playerIndex]
     local ownedShine = get_player_owned_shine(m.playerIndex)
 
@@ -158,7 +160,7 @@ function before_phys_step(m)
 
     -- boost variant
     if (gGlobalSyncTable.variant == 5 or gGlobalSyncTable.variant == 7 or sMario.spectator) and sMario.boostTime and sMario.boostTime ~= 0 then
-        if (m.action & ACT_FLAG_INTANGIBLE) == 0 then
+        if (m.action & ACT_FLAG_INTANGIBLE) == 0 and m.action ~= ACT_FLYING then
             speed_cap = speed_cap + 15
 
             if ownedShine == 0 then speed_cap = speed_cap + 15 end -- boost is worse for shine player
@@ -191,19 +193,28 @@ function before_phys_step(m)
 
     if m.action == ACT_FLYING then
         speed_cap = 80
-        local speed_min = 30
-        if (m.pos.y > 7000 and m.pos.y - m.floorHeight > 3000) then
-            speed_min = 0
-        elseif sMario.boostTime ~= 0 then
-            speed_min = speed_min + 20
-            speed_cap = speed_cap + 20
-            m.forwardVel = approach_f32(m.forwardVel, speed_cap, 4, 4)
-        end
+        local speed_min = 50
 
         if ownedShine ~= 0 then
-            m.forwardVel = clamp(m.forwardVel, speed_min, speed_cap - 30)
-        else
-            m.forwardVel = math.max(m.forwardVel, speed_min)
+            speed_cap = speed_min
+            speed_min = speed_min - 30
+            if m.forwardVel > speed_cap then
+                m.forwardVel = math.max(m.forwardVel - 4, speed_cap)
+            end
+        end
+
+        if (m.pos.y - math.max(256, m.floorHeight) > 3000) then
+            speed_min = 0
+            speed_cap = 30
+        elseif sMario.boostTime ~= 0 then
+            speed_min = speed_min + 20
+            if m.forwardVel < speed_cap then
+                m.forwardVel = math.min(m.forwardVel + 3, speed_cap)
+            end
+        end
+
+        if m.forwardVel < speed_min then
+            m.forwardVel = math.min(m.forwardVel + 2, speed_min)
         end
     elseif m.action == ACT_WATER_SHELL_SWIMMING then
         m.forwardVel = 40 -- usually 28
@@ -258,7 +269,7 @@ function mario_update(m)
 
     -- drop the shine if we take damage
     if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP
-    or m.hurtCounter > 0)
+    or m.hurtCounter > 0 or cappyStealer ~= 0)
     and ownedShine ~= 0 and m.playerIndex == 0 then
         if cappyStealer == 0 then
             drop_shine(0, 0)
@@ -266,6 +277,7 @@ function mario_update(m)
             drop_shine(0, 3, cappyStealer)
             cappyStealer = 0
         end
+        m.hurtCounter = 0
     end
 
     -- for underground lake
@@ -746,6 +758,7 @@ hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
 --- @param attacker MarioState
 --- @param victim MarioState
 function on_pvp_attack(attacker, victim, cappyAttack)
+    victim.hurtCounter = 0
     if victim.playerIndex == 0 then
         local vOwnedShine = get_player_owned_shine(0)
 
@@ -814,7 +827,11 @@ function shell_rush_shell(m)
     local spawnShell = 0
     if m.riddenObj then
         m.riddenObj.oInteractStatus = INT_STATUS_STOP_RIDING
-        force_idle_state(m)
+        if (m.action & ACT_FLAG_AIR) ~= 0 then
+            set_mario_action(m, ACT_FREEFALL, 0)
+        else
+            force_idle_state(m)
+        end
     elseif (m.input & INPUT_IN_WATER) ~= 0 then
         if (m.waterLevel - m.pos.y) < 100 then
             spawnShell = 1
@@ -825,7 +842,7 @@ function shell_rush_shell(m)
                 set_camera_mode(m.area.camera, CAMERA_MODE_FREE_ROAM, 1)
             end
         end
-    elseif (m.action & ACT_FLAG_INVULNERABLE) == 0 and (m.action & ACT_FLAG_INTANGIBLE) == 0 then
+    elseif m.action ~= ACT_BACKWARD_GROUND_KB and m.prevAction ~= ACT_BACKWARD_GROUND_KB then
         spawnShell = 1
     end
 
