@@ -1,7 +1,7 @@
 -- This file handles the shine, pipes, and deleted objects
 
 define_custom_obj_fields({
-    oObjectOwner = "s32", -- The global index of the player who owns this item. This used to be used for the shine too
+    oObjectOwner = "s32",       -- The global index of the player who owns this item. This used to be used for the shine too
     oShineDistFromHome = "f32", -- oStarSpawnDisFromHome screws up for some reason
 })
 
@@ -10,7 +10,7 @@ define_custom_obj_fields({
 function bhv_shine_init(o)
     local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, o.oBehParams)
     if shine == o then obj_get_next_with_same_behavior_id_and_field_s32(shine, 0x40, o.oBehParams) end
-    
+
     if shine and shine ~= o then -- don't want a second shine
         obj_mark_for_deletion(shine)
     end
@@ -76,10 +76,10 @@ function bhv_shine_loop(o)
             send = true
         end
     elseif m and get_player_owned_shine(m.playerIndex) == 0
-    and network_is_server() and gGlobalSyncTable.gameState ~= 1
-    and not sMario.spectator
-    and dist_between_objects(o, m.marioObj) <= 275
-    and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently) handled by the server
+        and network_is_server() and gGlobalSyncTable.gameState ~= 1
+        and not sMario.spectator
+        and dist_between_objects(o, m.marioObj) <= 275
+        and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently) handled by the server
         -- set shine owner to the collecter
         shineOwner = set_player_owned_shine(m.playerIndex, o.oBehParams)
         cur_obj_change_action(0)
@@ -129,7 +129,7 @@ function bhv_shine_loop(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif is_hazard_floor(o.oFloorType)
-        and stepResult == OBJ_MOVE_LANDED and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then -- return if in quicksand or lava
+            and stepResult == OBJ_MOVE_LANDED and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then -- return if in quicksand or lava
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
@@ -148,7 +148,8 @@ function bhv_shine_loop(o)
                 cur_obj_change_action(0)
             else
                 o.oForwardVel = 0
-                o.oPosY = o.oFloorHeight + 160 -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
+                o.oPosY = o.oFloorHeight +
+                160                            -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
                 cur_obj_change_action(0)
             end
         elseif stepResult == OBJ_MOVE_LANDED then
@@ -156,12 +157,12 @@ function bhv_shine_loop(o)
         end
 
         send = true
-    elseif o.oAction == 2 and network_is_server() then -- return to home if off stage (from star code)
+    elseif o.oAction == 2 and network_is_server() then                     -- return to home if off stage (from star code)
         obj_move_xyz_using_fvel_and_yaw(o)
-        o.oStarSpawnUnkFC = o.oStarSpawnUnkFC + o.oVelY -- why?
+        o.oStarSpawnUnkFC = o.oStarSpawnUnkFC + o.oVelY                    -- why?
         o.oPosY = o.oStarSpawnUnkFC + sins((o.oTimer * 0x8000) / 30) * 400 -- why?
-        o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000 -- spin faster
-        if (o.oTimer == 30) then -- always returns after 1 second
+        o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000                         -- spin faster
+        if (o.oTimer == 30) then                                           -- always returns after 1 second
             o.oPosX = o.oHomeX
             o.oPosY = o.oHomeY
             o.oPosZ = o.oHomeZ
@@ -181,6 +182,7 @@ function bhv_shine_loop(o)
         network_send_object(o, true)
     end
 end
+
 id_bhvShine = hook_behavior(nil, OBJ_LIST_LEVEL, true, bhv_shine_init, bhv_shine_loop, "bhvShine")
 
 -- uses the same formula as stars
@@ -205,15 +207,19 @@ function lose_shine(index, dropType, attacker)
     if dropType ~= 2 and dropType ~= 3 then
         local playerColor = network_get_player_text_color_string(index)
         if attacker == nil then
-            djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
+            djui_popup_create_global(
+            string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
         else
             local aPlayerColor = network_get_player_text_color_string(attacker)
             local aNP = gNetworkPlayers[attacker]
             local aName = aNP.name
             if aNP.connected then
-                djui_popup_create_global(string.format("%s\\#ffffff\\ made %s\\#ffffff\\\ndrop the \\#ffff40\\Shine\\#ffffff\\!",aPlayerColor..aName,playerColor..np.name), 1)
+                djui_popup_create_global(
+                string.format("%s\\#ffffff\\ made %s\\#ffffff\\\ndrop the \\#ffff40\\Shine\\#ffffff\\!",
+                    aPlayerColor .. aName, playerColor .. np.name), 1)
             else
-                djui_popup_create_global(string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!",playerColor..np.name), 1)
+                djui_popup_create_global(
+                string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
             end
         end
     elseif dropType == 3 then
@@ -228,7 +234,7 @@ function lose_shine(index, dropType, attacker)
 
     if shine and network_is_server() then
         shine.oTimer = 0
-        if dropType == 1 then -- fell off stage
+        if dropType == 1 then     -- fell off stage
             shine_return(shine)
         elseif dropType == 2 then -- pass
             shine.oVelY = 0
@@ -240,7 +246,7 @@ function lose_shine(index, dropType, attacker)
             local yDist = 0
             local team = gPlayerSyncTable[m.playerIndex].team
             local minDist = 3000
-            for i=0,MAX_PLAYERS-1 do
+            for i = 0, MAX_PLAYERS - 1 do
                 if m.playerIndex ~= i and gPlayerSyncTable[i].team == team then
                     local player = gMarioStates[i].marioObj
                     local dist = dist_between_objects(m.marioObj, player)
@@ -256,7 +262,7 @@ function lose_shine(index, dropType, attacker)
             if yDist > 0 then
                 vel = math.min((minDist / math.sqrt(0.8 * yDist)), vel)
             end
-            
+
             shine.oForwardVel = vel
             shine.oMoveAngleYaw = angle
             shine.oTimer = 15
@@ -315,7 +321,8 @@ function reset_shine_command(msg)
     })
     return true
 end
-hook_chat_command("reset","- Resets the shine",reset_shine_command)
+
+hook_chat_command("reset", "- Resets the shine", reset_shine_command)
 
 -- command to move shine
 function move_shine_command(msg)
@@ -330,7 +337,8 @@ function move_shine_command(msg)
     })
     return true
 end
-hook_chat_command("move"," - Moves the shine to where you are standing",move_shine_command)
+
+hook_chat_command("move", " - Moves the shine to where you are standing", move_shine_command)
 
 -- pipes
 --- @param o Object
@@ -338,7 +346,7 @@ function st_pipe_init(o)
     local hitbox = get_temp_object_hitbox()
     hitbox.interactType = INTERACT_WATER_RING -- we already disable INTERACT_WARP
     hitbox.radius = 100
-    hitbox.height = 220 -- a lot easier to enter than a normal pipe
+    hitbox.height = 220                       -- a lot easier to enter than a normal pipe
     obj_set_hitbox(o, hitbox)
 
     o.collisionData = smlua_collision_util_get("warp_pipe_seg3_collision_03009AC8")
@@ -346,6 +354,7 @@ function st_pipe_init(o)
     o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
     --network_init_object(o, false, {})
 end
+
 --- @param o Object
 function st_pipe_loop(o)
     local m = nearest_mario_state_to_object(o)
@@ -357,10 +366,11 @@ function st_pipe_loop(o)
                 m.pos.y = pair.oPosY + 160
                 m.vel.y = 65
             else
-                mario_drop_held_object(m)
+                drop_and_set_mario_action(m, ACT_FREEFALL, 1)
                 mario_set_forward_vel(m, 0)
                 m.pos.y = pair.oPosY - 320
                 m.vel.y = math.min(0, m.vel.y)
+                m.marioObj.oPosY = m.pos.y -- fix weird issue where the player bounces and ends up in the void
             end
 
             m.pos.x = pair.oPosX
@@ -373,13 +383,13 @@ function st_pipe_loop(o)
                 -- TODO: Set camera yaw to behind mario
                 soft_reset_camera(m.area.camera)
                 center_rom_hack_camera()
-                m.collidedObjInteractTypes = 0
             end
         end
         o.oInteractStatus = 0
     end
     load_object_collision_model()
 end
+
 id_bhvSTPipe = hook_behavior(nil, OBJ_LIST_SURFACE, true, st_pipe_init, st_pipe_loop, "bhvSTPipe")
 -- very similar to the red coin one, but doesn't drop to floor
 --- @param o Object
@@ -389,11 +399,17 @@ function shine_marker_init(o)
     o.header.gfx.scale.z = 0.75
     network_init_object(o, false, nil)
 end
+
 --- @param o Object
 function shine_marker_loop(o)
     o.oFaceAngleYaw = o.oFaceAngleYaw + 0x100
     o.oFaceAnglePitch = 0x4000
+    if not o.parentObj then return end
+    o.oPosX = o.parentObj.oHomeX
+    o.oPosY = o.parentObj.oHomeY - 120
+    o.oPosZ = o.parentObj.oHomeZ
 end
+
 id_bhvShineMarker = hook_behavior(nil, OBJ_LIST_DEFAULT, true, shine_marker_init, shine_marker_loop, "bhvShineMarker")
 
 -- somewhat based on the arena bob-omb
@@ -425,6 +441,7 @@ function thrown_bomb_init(o)
         'oAnimState', -- explode on contact
     })
 end
+
 --- @param o Object
 function thrown_bomb_loop(o)
     if o.oAction ~= 1 then
@@ -440,12 +457,76 @@ function thrown_bomb_loop(o)
                 network_send_object(o, true)
             end
         end
-    else 
+    else
         bhv_explosion_loop()
         o.oAnimState = o.oAnimState + 1
     end
 end
+
 id_bhvThrownBobomb = hook_behavior(nil, OBJ_LIST_DESTRUCTIVE, true, thrown_bomb_init, thrown_bomb_loop, "bhvThrownBobomb")
+
+-- item boxes! (wip)
+function item_box_init(o)
+    o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
+    o.oOpacity = 100
+    local hitbox = get_temp_object_hitbox()
+    hitbox.interactType = INTERACT_WATER_RING -- Don't want to have INTERACT_STAR because it has hard-coded behavior
+    hitbox.radius = 80
+    hitbox.height = 50
+    obj_set_hitbox(o, hitbox)
+    
+    network_init_object(o, false, {
+        'oTimer',
+        'oAction',
+    })
+end
+
+function item_box_loop(o)
+    local m = nearest_mario_state_to_object(o)
+
+    if o.oAction == 0 then
+        cur_obj_enable_rendering_and_become_tangible(o)
+        cur_obj_scale(1)
+    elseif o.oAction == 1 then
+        if o.oTimer == 1 then
+            spawn_triangle_break_particles(4, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
+        end
+        cur_obj_become_intangible()
+        if o.oTimer < 5 then
+            cur_obj_scale_over_time(7, 5, 1, 0)
+        elseif o.oTimer < 120 then
+            cur_obj_disable_rendering()
+        else
+            cur_obj_enable_rendering()
+            cur_obj_change_action(2)
+        end
+    elseif o.oTimer < 5 then
+        cur_obj_scale_over_time(7, 5, 0, 1)
+    else
+        cur_obj_change_action(0)
+        cur_obj_scale(1)
+    end
+    o.oFaceAngleYaw = o.oFaceAngleYaw + 100
+
+    local sMario = gPlayerSyncTable[m.playerIndex]
+    if o.oAction == 0 and o.oInteractStatus ~= 0 and m.playerIndex == 0 and sMario.item == 0 then
+        cur_obj_change_action(1)
+        o.oTimer = 0
+        local item = random_item()
+        sMario.item = item
+        djui_chat_message_create(tostring(item))
+        network_send_object(o, true)
+    end
+    o.oInteractStatus = 0
+end
+
+id_bhvItemBox = hook_behavior(nil, OBJ_LIST_GENACTOR, true, item_box_init, item_box_loop, "bhvItemBox")
+
+-- get a random item
+function random_item()
+    local result = math.random(1, 3) -- TODO: make more complex
+    return result
+end
 
 -- custom shells that only do the ride action (slightly based on shell rush (gamemode))
 function custom_shell_init(o)
@@ -458,6 +539,7 @@ function custom_shell_init(o)
     o.oFriction = 10
     o.oBuoyancy = 2
 end
+
 function custom_shell_loop(o)
     if o.heldByPlayerIndex < MAX_PLAYERS then
         local m = gMarioStates[o.heldByPlayerIndex]
@@ -500,7 +582,8 @@ function koopa_shell_spawn_water_drop(o)
     spawn_non_sync_object(id_bhvObjectWaveTrail, E_MODEL_WAVE_TRAIL, o.oPosX, o.oPosY, o.oPosZ, nil)
     if (o.heldByPlayerIndex < MAX_PLAYERS) then
         if (gMarioStates[o.heldByPlayerIndex].forwardVel > 10.0) then
-            local drop = spawn_non_sync_object(id_bhvWaterDroplet, E_MODEL_WHITE_PARTICLE_SMALL, o.oPosX, o.oPosY, o.oPosZ, function(d) obj_scale(d, 1.5) end)
+            local drop = spawn_non_sync_object(id_bhvWaterDroplet, E_MODEL_WHITE_PARTICLE_SMALL, o.oPosX, o.oPosY,
+                o.oPosZ, function(d) obj_scale(d, 1.5) end)
             if drop then
                 drop.oVelY = math.random() * 30.0
                 obj_translate_xz_random(drop, 110.0)
@@ -510,7 +593,7 @@ function koopa_shell_spawn_water_drop(o)
 end
 
 function bhv_koopa_shell_flame_spawn(o)
-    for i=0,1 do
+    for i = 0, 1 do
         spawn_non_sync_object(id_bhvKoopaShellFlame, E_MODEL_RED_FLAME, o.oPosX, o.oPosY, o.oPosZ, nil)
     end
 end
@@ -536,6 +619,7 @@ function custom_bowser_loop(o)
         o.oSubAction = 2
     end
 end
+
 hook_behavior(id_bhvBowser, OBJ_LIST_GENACTOR, false, nil, custom_bowser_loop, "id_bhvBowser")
 
 -- delete objects
@@ -570,20 +654,24 @@ local id_delete = {
     [id_bhvStarDoor] = 1,
     [id_bhvHmcElevatorPlatform] = 1,
     [id_bhvPyramidElevator] = 1,
+    [id_bhvTuxiesMother] = 1,
+    [id_bhvPenguinBaby] = 1,
+    [id_bhvSmallPenguin] = 1,
 }
-for id,v in pairs(id_delete) do
+for id, v in pairs(id_delete) do
     hook_behavior(id, OBJ_LIST_DEFAULT, true, obj_mark_for_deletion, nil)
 end
 --- @param o Object
 function delete_level(o)
     local id = get_id_from_behavior(o.behavior)
     if id == id_bhvStar then
-        table.insert(spawn_potential, {o.oPosX,o.oPosY,o.oPosZ})
+        table.insert(spawn_potential, { o.oPosX, o.oPosY, o.oPosZ })
         obj_mark_for_deletion(o)
     elseif ((get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL and (not id_level_exception[id]) and id ~= id_bhvShine)) then
         obj_mark_for_deletion(o)
     end
 end
+
 hook_event(HOOK_OBJECT_SET_MODEL, delete_level)
 
 -- name: Remove Star Spawn Cutscenes
@@ -606,29 +694,47 @@ function remove_timestop()
         c.cutscene = 0
     end
 end
+
 hook_event(HOOK_UPDATE, remove_timestop)
 
 -- arena map support starts here
+already_spawn = {}
 function replace_shine(o)
-    table.insert(spawn_potential, {o.oPosX,o.oPosY,o.oPosZ})
-    obj_mark_for_deletion(o)
-end
-id_bhvArenaFlag = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_shine, nil, "bhvArenaFlag")
-
-
-function replace_spawn(o)
-    if arenaSpawnLocations == nil or arenaSpawnLocations[0] == nil then
-        arenaSpawnLocations = {}
-        arenaSpawnLocations[0] = {o.oPosX, o.oPosY, o.oPosZ}
-    else
-        table.insert(arenaSpawnLocations, {o.oPosX, o.oPosY, o.oPosZ})
+    if not already_spawn[o] then
+        table.insert(spawn_potential, { o.oPosX, o.oPosY, o.oPosZ })
+        already_spawn[o] = 1
     end
     obj_mark_for_deletion(o)
 end
+
+id_bhvArenaFlag = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_shine, nil, "bhvArenaFlag")
+
+function replace_spawn(o)
+    if not already_spawn[o] then
+        if arenaSpawnLocations == nil or arenaSpawnLocations[0] == nil then
+            arenaSpawnLocations = {}
+            arenaSpawnLocations[0] = { o.oPosX, o.oPosY, o.oPosZ }
+        else
+            table.insert(arenaSpawnLocations, { o.oPosX, o.oPosY, o.oPosZ })
+        end
+        already_spawn[o] = 1
+    end
+    obj_mark_for_deletion(o)
+end
+
 id_bhvArenaSpawn = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_spawn, nil, "bhvArenaSpawn")
 
+function replace_item(o)
+    if not already_spawn[o] then
+        table.insert(itemBoxLocations, { o.oPosX, o.oPosY, o.oPosZ })
+        already_spawn[o] = 1
+    end
+    obj_mark_for_deletion(o)
+end
+
+id_bhvArenaItem = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_item, nil, "bhvArenaItem")
+
 -- don't use these
-id_bhvArenaItem = hook_behavior(nil, OBJ_LIST_LEVEL, false, obj_mark_for_deletion, nil, "bhvArenaItem")
 id_bhvArenaKoth = hook_behavior(nil, OBJ_LIST_LEVEL, false, obj_mark_for_deletion, nil, "bhvArenaKoth")
 hook_behavior(nil, OBJ_LIST_LEVEL, false, obj_mark_for_deletion, nil, "bhvArenaItemHeld")
 hook_behavior(nil, OBJ_LIST_LEVEL, false, obj_mark_for_deletion, nil, "bhvArenaKothActive")

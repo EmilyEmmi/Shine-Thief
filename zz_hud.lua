@@ -39,7 +39,7 @@ local tip_general = {
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",
-    "Tip: In Team Mode, press B while holding SPECIAL_BUTTON to pass the Shine.",
+    "Tip: In Team Mode, press the D-PAD while holding R to pass the Shine.",
     "Tip: After 5 minutes, the shine timer will be halved.",
     "Tip: You can enter Spectator Mode in the menu.",
 }
@@ -82,18 +82,18 @@ local menu_data = {
         { "Spectate", function() spectator_mode() end },
         { "Restart",  function() new_game() end,      true },
         { "New Game", function() enter_menu(3) end,   true },
-        { "Options",     function() enter_menu(5) end, true },
+        { "Options",  function() enter_menu(5) end,   true },
     },
     [2] = {
         { "Play Again", function() new_game() end,    true },
         { "New Game",   function() enter_menu(3) end, true },
-        { "Options",     function() enter_menu(5) end, true },
+        { "Options",    function() enter_menu(5) end, true },
     },
     [3] = {
         { "Placeholder", function(x) new_game_set_settings(x) end, currNum = 2, maxNum = #levelData },
         { "Random",      function() start_random_level(true) end },
         { "Custom",      function() enter_menu(4) end },
-        { "Options",     function() enter_menu(5) end, true },
+        { "Options",     function() enter_menu(5) end,             true },
     },
     [4] = {
         {
@@ -119,7 +119,7 @@ local menu_data = {
             maxNum = 7
         },
         {
-            "Dry",
+            "Water",
             function(x)
                 local course = get_menu_option(4, 1)
                 local level = course_to_level[course]
@@ -127,7 +127,8 @@ local menu_data = {
             end,
             currNum = 0,
             minNum = 0,
-            maxNum = 1
+            maxNum = 1,
+            nameRef = { "ON", "OFF" },
         },
         { "Random", function()
             start_random_level()
@@ -158,8 +159,9 @@ local menu_data = {
             nameRef = { "Choose", "Vote", "Random" },
             runOnChange = true
         },
-        { "Variant", function(x) menuVariant = x end, currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list, runOnChange = true },
-        { "Teams",   function(x) menuTeam = x end,    currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,         runOnChange = true }
+        { "Variant", function(x) menuVariant = x end,                   currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,    runOnChange = true },
+        { "Teams",   function(x) menuTeam = x end,                      currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,            runOnChange = true },
+        { "Items",   function(x) gGlobalSyncTable.items = (x == 1) end, currNum = 1, minNum = 0,  maxNum = 1,                 nameRef = { "OFF", "ON" }, runOnChange = true },
     },
     [6] = {
         {
@@ -175,7 +177,7 @@ local menu_data = {
         },
         { "Play Again", function() new_game() end,    true },
         { "New Game",   function() enter_menu(3) end, true },
-        { "Options",   function() enter_menu(5) end, true },
+        { "Options",    function() enter_menu(5) end, true },
     }
 }
 
@@ -893,7 +895,7 @@ function render_menu()
     end
 end
 
-local r_press = false
+r_press = false
 -- menu controls + special action control
 ---@param m MarioState
 function menu_controls(m)
@@ -1422,7 +1424,6 @@ function render_player_head_interpolated(index, prevX, prevY, prevScaleX, prevSc
 end
 
 -- arena map support
-local lastAddedLevel = 50
 local addedMcDonalds = false
 _G.Arena = {}
 _G.Arena.add_level = function(level, name)
@@ -1433,7 +1434,6 @@ _G.Arena.add_level = function(level, name)
         area = 1,
     })
     menu_data[3][1].maxNum = #levelData -- make selectable
-    lastAddedLevel = lastAddedLevel + 1
     table.insert(course_to_level, level)
 end
 
@@ -1443,7 +1443,7 @@ function add_mcdonalds()
     addedMcDonalds = true
 
     table.insert(levelData, {
-        level = lastAddedLevel,
+        level = 100,
         course = 0,
         name = "McDonald's",
         area = 1,
@@ -1462,7 +1462,7 @@ function add_mcdonalds()
         },
     })
     menu_data[3][1].maxNum = #levelData -- make selectable
-    table.insert(course_to_level, lastAddedLevel)
+    table.insert(course_to_level, 100)
 end
 
 -- fix issue with romhacks and adding base stages

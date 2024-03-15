@@ -550,6 +550,7 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             save_file_set_flags(SAVE_FLAG_MOAT_DRAINED)
             save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
             save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
+            gPlayerSyncTable[0].item = 0
         end
     end
     m.pos.z = pos[3]

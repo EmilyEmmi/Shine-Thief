@@ -52,13 +52,12 @@ function bhv_arena_spring_init(obj)
         c.oFaceAngleYaw = obj.oFaceAngleYaw
         c.oFaceAngleRoll = obj.oFaceAngleRoll
     end)
-    network_init_object(obj, false, {
+    --[[network_init_object(obj, false, {
         'oArenaSpringSprung'
-    })
+    })]]
 end
 
-function bhv_arena_spring_launch(obj)
-    local m = gMarioStates[0]
+function bhv_arena_spring_launch(obj, m)
     local behParams = obj.oBehParams
     local strength = behParams & 0xFF
     local pitchAdjust = ((behParams >> 8) & 0xFF) * 0.01
@@ -98,14 +97,15 @@ function bhv_arena_spring_launch(obj)
     end
     obj.oArenaSpringSprung = 15
 
-    network_send_object(obj, false)
+    --network_send_object(obj, false)
 end
 
 function bhv_arena_spring_loop(obj)
-    local player = gMarioStates[0].marioObj
+    local m = nearest_mario_state_to_object(obj)
+    local player = m.marioObj --gMarioStates[0].marioObj
     local dist = math.sqrt((obj.oPosX - player.oPosX) ^ 2 + (obj.oPosY - player.oPosY) ^ 2 + (obj.oPosZ - player.oPosZ) ^ 2)
     if dist < 160 then
-        bhv_arena_spring_launch(obj)
+        bhv_arena_spring_launch(obj, m)
     end
     if obj.oArenaSpringSprung > 0 then
         obj.oArenaSpringSprung = obj.oArenaSpringSprung - 1
