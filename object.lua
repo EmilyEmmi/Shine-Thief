@@ -124,18 +124,18 @@ function bhv_shine_loop(o)
             cur_obj_become_tangible()
         end
 
-        if o.oFloorType == SURFACE_DEATH_PLANE and (o.oPosY - o.oFloorHeight < 2048) then -- return if fallen
+        if o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND and (o.oPosY - o.oFloorHeight < 2048) then -- return if fallen
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif is_hazard_floor(o.oFloorType)
-            and stepResult == OBJ_MOVE_LANDED and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then -- return if in quicksand or lava
+            and stepResult == OBJ_MOVE_LANDED then -- return if in quicksand or lava
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif (o.oForwardVel < 2 and o.oVelY < 1) or (stepResult == OBJ_MOVE_LANDED and o.oTimer > 300) then -- sometimes the shine gets stuck on slopes, so stop automatically after 10 seconds
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
-            if is_hazard_floor(o.oFloorType) and (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND or gGlobalSyncTable.variant ~= 3 or thisLevel.badLava) then
+            if is_hazard_floor(o.oFloorType) then
                 -- prevent shine from getting stuck on these floors
                 shine_return(o)
                 cur_obj_become_intangible()
@@ -465,7 +465,7 @@ end
 
 id_bhvThrownBobomb = hook_behavior(nil, OBJ_LIST_DESTRUCTIVE, true, thrown_bomb_init, thrown_bomb_loop, "bhvThrownBobomb")
 
--- item boxes! (wip)
+-- item boxes!
 function item_box_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oOpacity = 100
@@ -514,6 +514,8 @@ function item_box_loop(o)
         o.oTimer = 0
         local item = random_item()
         sMario.item = item
+        sMario.itemUses = 0
+        cur_obj_play_sound_1(SOUND_GENERAL_COLLECT_1UP)
         djui_chat_message_create(tostring(item))
         network_send_object(o, true)
     end
@@ -522,11 +524,83 @@ end
 
 id_bhvItemBox = hook_behavior(nil, OBJ_LIST_GENACTOR, true, item_box_init, item_box_loop, "bhvItemBox")
 
--- get a random item
-function random_item()
-    local result = math.random(1, 3) -- TODO: make more complex
-    return result
+-- held items by players (wip)
+function held_item_init(o)
+    o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleYaw = 0
 end
+function held_item_loop(o)
+    if o.hookRender == 0 then return end
+    local sMario = gPlayerSyncTable[o.hookRender-1]
+    local m = gMarioStates[o.hookRender-1]
+    if sMario.item == nil or sMario.item == 0 or is_player_active(m) == 0 then
+        cur_obj_disable_rendering()
+        return
+    end
+    local data = item_data[sMario.item]
+
+    if data.hand then
+        o.oFaceAngleYaw = 0
+        if o.unused1 ~= 0 then
+            cur_obj_disable_rendering()
+        else
+            cur_obj_enable_rendering()
+        end
+    else -- spin around player
+        cur_obj_enable_rendering()
+        local dir = o.oTimer * 1024 + (o.unused1 * 21845) -- add 1/3 distance for animstate
+        if o.oTimer >= 64 then
+            o.oTimer = 0
+        end
+        local dist = 120
+
+        -- spawn extra items for triples/doubles
+        local count = data.count or 1
+        if o.unused1 < count-1 and (o.parentObj == o or o.parentObj == nil) then
+            local newObj = spawn_non_sync_object(id_bhvHeldItem, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
+            o.parentObj = newObj
+            newObj.unused1 = o.unused1 + 1
+            newObj.hookRender = o.hookRender
+        elseif o.unused1 > count-1 then
+            cur_obj_disable_rendering()
+            return
+        end
+
+        o.oPosX = m.pos.x + sins(dir) * dist
+        o.oPosY = m.pos.y + 40 + (data.yOffset or 0)
+        o.oPosZ = m.pos.z + coss(dir) * dist
+
+        if data.bill then
+            obj_set_billboard(o)
+        else
+            o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+            o.oFaceAngleYaw = o.oFaceAngleYaw + 0x800
+        end
+    end
+    cur_obj_scale(data.scale or 1)
+end
+id_bhvHeldItem = hook_behavior(nil, OBJ_LIST_DEFAULT, true, held_item_init, held_item_loop, "bhvHeldItem")
+
+-- item rendering
+function on_obj_render(o)
+    if get_id_from_behavior(o.behavior) ~= id_bhvHeldItem then return end
+    local sMario = gPlayerSyncTable[o.hookRender-1]
+    local m = gMarioStates[o.hookRender-1]
+    if sMario.item == nil or sMario.item == 0 or is_player_active(m) == 0 then
+        return
+    end
+
+    local data = item_data[sMario.item]
+    local model = data.model or E_MODEL_GOOMBA
+    obj_set_model_extended(o, model)
+    if data.hand then
+        o.oPosX = get_hand_foot_pos_x(m, 0)
+        o.oPosY = get_hand_foot_pos_y(m, 0) + (data.yOffset or 0)
+        o.oPosZ = get_hand_foot_pos_z(m, 0)
+    end
+end
+hook_event(HOOK_ON_OBJECT_RENDER, on_obj_render)
 
 -- custom shells that only do the ride action (slightly based on shell rush (gamemode))
 function custom_shell_init(o)

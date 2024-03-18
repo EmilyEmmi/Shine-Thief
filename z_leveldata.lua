@@ -551,6 +551,10 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
             save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
             gPlayerSyncTable[0].item = 0
+            gPlayerSyncTable[0].itemUses = 0
+            gPlayerSyncTable[0].mushroomTime = 0
+            gMarioStates[0].capTimer = 0
+            stop_cap_music()
         end
     end
     m.pos.z = pos[3]

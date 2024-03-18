@@ -22,7 +22,7 @@ gGlobalSyncTable.wonMap = -1
 gGlobalSyncTable.teamMode = 0
 gGlobalSyncTable.variant = 0
 gGlobalSyncTable.mapChoice = 0
-gGlobalSyncTable.items = true
+gGlobalSyncTable.items = 1
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
@@ -43,7 +43,6 @@ SOUND_SHINE_GRAB = audio_sample_load("grab.mp3")
 
 local cappyStealer = 0
 
-
 local shineFrameCounter = 0
 local showTimeTimer = 0
 SPECIAL_BUTTON = (_G.OmmEnabled and L_TRIG) or Y_BUTTON
@@ -52,6 +51,7 @@ localWinner = 0
 localWinner2 = -1
 specialDown = false
 specialPressed = false
+renderItemExists = {}
 
 -- team colors (first is palette, second is table for HUD color)
 TEAM_PALETTE = {
@@ -128,6 +128,11 @@ function spectator_mode()
     local sMario = gPlayerSyncTable[0]
     sMario.spectator = not sMario.spectator
     if sMario.spectator then
+        sMario.item = 0
+        sMario.itemUses = 0
+        sMario.mushroomTime = 0
+        gMarioStates[0].capTimer = 0
+        stop_cap_music()
         if gGlobalSyncTable.gameState ~= 3 then
             if get_player_owned_shine(0) ~= 0 then
                 drop_shine(0, 1)
@@ -163,7 +168,25 @@ function before_phys_step(m)
     if (m.action & ACT_FLAG_RIDING_SHELL) ~= 0 then speed_cap = speed_cap + 10 end -- other players can travel at >60 speed
 
     -- boost variant
-    if (gGlobalSyncTable.variant == 5 or gGlobalSyncTable.variant == 7 or sMario.spectator) and sMario.boostTime and sMario.boostTime ~= 0 then
+    if (sMario.boostTime and sMario.boostTime ~= 0) then
+        if (m.action & ACT_FLAG_INTANGIBLE) == 0 and m.action ~= ACT_FLYING then
+            speed_cap = speed_cap + 15
+
+            if ownedShine == 0 then speed_cap = speed_cap + 15 end -- boost is worse for shine player
+
+            local intendedDYaw = limit_angle(m.intendedYaw - m.faceAngle.y)
+            local intendedMag = m.intendedMag / 32
+
+            m.forwardVel = m.forwardVel + intendedMag * coss(intendedDYaw) * 3
+            if m.forwardVel > speed_cap then
+                m.forwardVel = speed_cap
+            elseif m.forwardVel < -20 then
+                m.forwardVel = -20
+            end
+        end
+    end
+    -- mushroom (similar to boost)
+    if (sMario.mushroomTime and sMario.mushroomTime ~= 0) then
         if (m.action & ACT_FLAG_INTANGIBLE) == 0 and m.action ~= ACT_FLYING then
             speed_cap = speed_cap + 15
 
@@ -418,16 +441,28 @@ function mario_update(m)
             end
         end
 
-        -- pass shine in team mode
-        if m.playerIndex == 0 and gGlobalSyncTable.teamMode ~= 0 and throw_direction() ~= 4 then
-            drop_shine(m.playerIndex, 2)
-        end
-
         set_mario_particle_flags(m, PARTICLE_SPARKLES, 0) -- sparkle if we have shine
     elseif m.playerIndex == 0 then
         shineFrameCounter = 0
         if sMario.shineTimer > gGlobalSyncTable.winTime - 5 then
             sMario.shineTimer = gGlobalSyncTable.winTime - 5 -- always have '5' seconds left (actually more)
+        end
+    end
+
+    -- render item
+    if is_player_active(m) ~= 0 and sMario.item and sMario.item ~= 0 and not renderItemExists[m.playerIndex] then
+        local o = spawn_non_sync_object(id_bhvHeldItem, E_MODEL_NONE, m.pos.x, m.pos.y, m.pos.z, nil)
+        renderItemExists[m.playerIndex] = 1
+        o.hookRender = m.playerIndex + 1 -- plus one so its non-zero
+    end
+
+    -- items and shine passing
+    if m.playerIndex == 0 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
+        local throwDir = throw_direction()
+        if sMario.item ~= 0 and throwDir ~= 4 then
+            sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
+        elseif throwDir ~= 4 then -- pass shine in team mode
+            drop_shine(0, 2)
         end
     end
 
@@ -460,8 +495,7 @@ function mario_update(m)
     -- moon gravity variant
     if gGlobalSyncTable.variant == 4 and (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_TWIRLING and m.action ~= ACT_SHOT_FROM_CANNON then
         if m.vel.y < -25 then
-            local interaction = determine_interaction(m, m.marioObj)
-            if interaction ~= INT_GROUND_POUND then
+            if m.controller.buttonDown & Z_TRIG ~= 0 then
                 m.vel.y = -25
             elseif m.vel.y < -50 then
                 m.vel.y = -50
@@ -535,6 +569,13 @@ function mario_update(m)
             end
         elseif m.playerIndex == 0 and special_pressed(m) and sMario.specialCooldown == 0 then
             sMario.boostTime = 1 -- start boost by pressing y
+        end
+    end
+    -- mushroom effect
+    if sMario.mushroomTime and sMario.mushroomTime ~= 0 then
+        set_mario_particle_flags(m, ACTIVE_PARTICLE_SPARKLES, 0)
+        if m.playerIndex == 0 then
+            sMario.mushroomTime = sMario.mushroomTime - 1
         end
     end
 
@@ -646,7 +687,10 @@ end
 
 -- utility function that returns if a floor is hazardous (lava, quicksand, or death plane)
 function is_hazard_floor(type)
-    return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING or type == SURFACE_DEATH_PLANE or type == SURFACE_VERTICAL_WIND)
+    if (type == SURFACE_DEATH_PLANE or type == SURFACE_VERTICAL_WIND) then
+        return true
+    end
+    return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING) and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
 end
 
 -- from extended moveset
@@ -751,7 +795,7 @@ end
 -- prevent team attack
 --- @param attacker MarioState
 --- @param victim MarioState
-function allow_pvp_attack(attacker, victim)
+function allow_pvp_attack(attacker, victim, item)
     local sAttacker = gPlayerSyncTable[attacker.playerIndex]
     local sVictim = gPlayerSyncTable[victim.playerIndex]
     return (sAttacker.spectator or sVictim.spectator) or (sAttacker.team == 0 or sAttacker.team ~= sVictim.team)
@@ -762,12 +806,13 @@ hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
 -- steal shine directly for some attacks
 --- @param attacker MarioState
 --- @param victim MarioState
-function on_pvp_attack(attacker, victim, cappyAttack)
+function on_pvp_attack(attacker, victim, cappyAttack, item)
     victim.hurtCounter = 0
     if victim.playerIndex == 0 then
         local vOwnedShine = get_player_owned_shine(0)
+        local sAttacker = gPlayerSyncTable[attacker.playerIndex]
 
-        if attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP or cappyAttack then
+        if not item and ((sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0) or attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP or cappyAttack) then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
                 if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
                     cappyStealer = attacker.playerIndex
@@ -943,6 +988,7 @@ function on_sync_valid()
     sMario.specialCooldown = 0
     sMario.boostTime = 0
     already_spawn = {}
+    renderItemExists = {}
     setup_level_data(gGlobalSyncTable.gameLevel)
     if gGlobalSyncTable.gameState ~= 0 then
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
@@ -980,6 +1026,8 @@ function on_sync_valid()
         sMario.specialCooldown = 0
         sMario.boostTime = 0
         sMario.item = 0
+        sMario.itemUses = 0
+        sMario.mushroomTime = 0
         sMario.spectator = false
         sMario.myVote = 0
         gMarioStates[0].numStars = 0
@@ -1120,7 +1168,7 @@ function spawn_objects_at_start()
                     )
                 end
 
-                if #itemBoxLocations > 0 and gGlobalSyncTable.items then
+                if #itemBoxLocations > 0 and gGlobalSyncTable.items ~= 0 then
                     for i,pos in ipairs(itemBoxLocations) do
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
                     end
@@ -1131,7 +1179,7 @@ function spawn_objects_at_start()
         if thisLevel.objLocations then
             for i, v in ipairs(thisLevel.objLocations) do
                 if v[1] == id_bhvItemBox then
-                    if network_is_server() and gGlobalSyncTable.items and loadingLevel then
+                    if network_is_server() and gGlobalSyncTable.items ~= 0 and loadingLevel then
                         spawn_sync_object(
                             v[1],
                             v[2],

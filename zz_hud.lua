@@ -35,7 +35,7 @@ local tip_general = {
     "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
     "Tip: A slide kick will instantly steal the Shine.",
     "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
-    "Mod created by EmilyEmmi, with help from EmeraldLockdown and some resources from NeedleN64 and Blocky.",
+    "Mod created by EmilyEmmi, with help from EmeraldLockdown and some resources from NeedleN64 and Blocky.", -- TODO: fix cutoff, add shell rush credits
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",
@@ -47,10 +47,13 @@ local tip_variant = {
     "Tip: Two players must each hold a Shine to win.",
     "Tip: The player holding the Shine will fly much slower.",
     "Tip: Press SPECIAL_BUTTON to spawn a shell. This can also be done in midair.",
-    "Tip: You'll jump higher and fall slower. Ground Pound to fall faster.",
+    "Tip: You'll jump higher and fall slower. Hold Z to fall faster.",
     "Tip: Hold SPECIAL_BUTTON to boost!",
     "Tip: Press SPECIAL_BUTTON to throw bombs.",
     "Tip: Hold SPECIAL_BUTTON to boost! This can also be done while flying.",
+}
+local tip_item = {
+    "Tip: Using a Mushroom lets you move faster AND steal the shine on any attack.",
 }
 local SPECIAL_BUTTON_STRING = "Y"
 if _G.OmmEnabled then
@@ -159,9 +162,9 @@ local menu_data = {
             nameRef = { "Choose", "Vote", "Random" },
             runOnChange = true
         },
-        { "Variant", function(x) menuVariant = x end,                   currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,    runOnChange = true },
-        { "Teams",   function(x) menuTeam = x end,                      currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,            runOnChange = true },
-        { "Items",   function(x) gGlobalSyncTable.items = (x == 1) end, currNum = 1, minNum = 0,  maxNum = 1,                 nameRef = { "OFF", "ON" }, runOnChange = true },
+        { "Variant", function(x) menuVariant = x end,            currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,    runOnChange = true },
+        { "Teams",   function(x) menuTeam = x end,               currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,            runOnChange = true },
+        { "Items",   function(x) gGlobalSyncTable.items = x end, currNum = 1, minNum = 0,  maxNum = 4,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
     },
     [6] = {
         {
@@ -1481,6 +1484,7 @@ function menu_set_settings()
     set_menu_option(5, 1, gGlobalSyncTable.mapChoice)
     set_menu_option(5, 2, menuVariant)
     set_menu_option(5, 3, menuTeam)
+    set_menu_option(5, 4, gGlobalSyncTable.items)
 end
 
 -- converts text to sm64 style abbreviation (ex: Bowser In The Sky becomes BitS)
