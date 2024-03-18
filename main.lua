@@ -1104,45 +1104,17 @@ function on_sync_valid()
     end
     sMario.specialCooldown = 0
     sMario.boostTime = 0
+    already_spawn = {}
     renderItemExists = {}
     
     if gGlobalSyncTable.gameState ~= 0 then
-        already_spawn = {}
         setup_level_data(gGlobalSyncTable.gameLevel)
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
-    elseif not didFirstJoinStuff then
-        -- nothing
     elseif isRomHack then
         setup_level_data(tostring(gLevelValues.entryLevel))
     else
         setup_level_data(BASE_LEVELS - 5)
     end
-
-    if _G.OmmEnabled then
-        gLevelValues.disableActs = false
-        omm_disable_feature = _G.OmmApi.omm_disable_feature
-        omm_disable_feature("trueNonStop", true)
-        omm_disable_feature("starsDisplay", true)
-        _G.OmmApi.omm_allow_cappy_mario_interaction = omm_allow_attack
-        _G.OmmApi.omm_resolve_cappy_mario_interaction = omm_attack
-    end
-
-    if thisLevel.noWater then
-        set_environment_region(0, -10000)
-        set_environment_region(1, -10000)
-        set_environment_region(2, -10000)
-        set_environment_region(3, -10000)
-    end
-
-    if gGlobalSyncTable.gameState == 3 then
-        drop_queued_background_music()
-        fadeout_level_music(1)
-        set_dance_action()
-    elseif gGlobalSyncTable.gameState == 2 and gGlobalSyncTable.showTime then
-        set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
-    end
-
-    sync_valid = 3
 
     if not didFirstJoinStuff then
         print("My global index is ", gNetworkPlayers[0].globalIndex)
@@ -1173,8 +1145,6 @@ function on_sync_valid()
         end
         if gGlobalSyncTable.gameState ~= 0 and not warp_to_level(thisLevel.level, thisLevel.area, 6) then
             warp_to_warpnode(thisLevel.level, thisLevel.area, 6, 0)
-        elseif gGlobalSyncTable.gameState == 0 then
-            warp_to_start_level()
         end
         if gGlobalSyncTable.gameState == 2 then
             tipDispTimer = 150
@@ -1204,6 +1174,32 @@ function on_sync_valid()
 
         didFirstJoinStuff = true
     end
+
+    if _G.OmmEnabled then
+        gLevelValues.disableActs = false
+        omm_disable_feature = _G.OmmApi.omm_disable_feature
+        omm_disable_feature("trueNonStop", true)
+        omm_disable_feature("starsDisplay", true)
+        _G.OmmApi.omm_allow_cappy_mario_interaction = omm_allow_attack
+        _G.OmmApi.omm_resolve_cappy_mario_interaction = omm_attack
+    end
+
+    if thisLevel.noWater then
+        set_environment_region(0, -10000)
+        set_environment_region(1, -10000)
+        set_environment_region(2, -10000)
+        set_environment_region(3, -10000)
+    end
+
+    if gGlobalSyncTable.gameState == 3 then
+        drop_queued_background_music()
+        fadeout_level_music(1)
+        set_dance_action()
+    elseif gGlobalSyncTable.gameState == 2 and gGlobalSyncTable.showTime then
+        set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
+    end
+
+    sync_valid = 3
 end
 
 hook_event(HOOK_ON_SYNC_VALID, on_sync_valid)
@@ -1214,7 +1210,7 @@ function spawn_objects_at_start()
     sync_valid = sync_valid - 1
     if sync_valid ~= 0 then return end
 
-    if thisLevel then
+    if true then
         local loadingLevel = false
         if network_is_server() then
             local shine = obj_get_first_with_behavior_id(id_bhvShine)

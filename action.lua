@@ -228,13 +228,7 @@ function before_set_mario_action(m, action)
         return 1
     end
 
-    if action == ACT_QUICKSAND_DEATH then -- disable quicksand
-        m.hurtCounter = 0xB
-        return ACT_LAVA_BOOST
-    elseif action == ACT_LAVA_BOOST and thisLevel.badLava then -- for Bowser 2
-        go_to_mario_start(m.playerIndex, gNetworkPlayers[m.playerIndex].globalIndex, true)
-        return 1
-    elseif action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                          -- transition into punch from water shell
+    if action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                          -- transition into punch from water shell
         return ACT_WATER_PUNCH
     elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                 -- transition from punch back into water shell
         return ACT_WATER_SHELL_SWIMMING
@@ -247,6 +241,23 @@ function before_set_mario_action(m, action)
 end
 
 hook_event(HOOK_BEFORE_SET_MARIO_ACTION, before_set_mario_action)
+
+-- quicksand and lava changes
+function allow_hazard_surface(m, type)
+    if type == 3 then return true end
+    local sMario = gPlayerSyncTable[m.playerIndex]
+    if sMario.star then return false end
+
+    if thisLevel.badLava then -- for Bowser 2
+        go_to_mario_start(m.playerIndex, gNetworkPlayers[m.playerIndex].globalIndex, true)
+        return false
+    elseif type == HAZARD_TYPE_QUICKSAND then -- disable quicksand
+        m.hurtCounter = 0xB
+        set_mario_action(m, ACT_LAVA_BOOST, 0)
+        return false
+    end
+end
+hook_event(HOOK_ALLOW_HAZARD_SURFACE, allow_hazard_surface)
 
 -- disable some interactions (warps, stars); also prevent team attack with bob-ombs
 --- @param m MarioState
