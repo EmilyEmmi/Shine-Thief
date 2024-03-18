@@ -149,7 +149,7 @@ function bhv_shine_loop(o)
             else
                 o.oForwardVel = 0
                 o.oPosY = o.oFloorHeight +
-                160                            -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
+                    160 -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
                 cur_obj_change_action(0)
             end
         elseif stepResult == OBJ_MOVE_LANDED then
@@ -208,18 +208,18 @@ function lose_shine(index, dropType, attacker)
         local playerColor = network_get_player_text_color_string(index)
         if attacker == nil then
             djui_popup_create_global(
-            string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
+                string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
         else
             local aPlayerColor = network_get_player_text_color_string(attacker)
             local aNP = gNetworkPlayers[attacker]
             local aName = aNP.name
             if aNP.connected then
                 djui_popup_create_global(
-                string.format("%s\\#ffffff\\ made %s\\#ffffff\\\ndrop the \\#ffff40\\Shine\\#ffffff\\!",
-                    aPlayerColor .. aName, playerColor .. np.name), 1)
+                    string.format("%s\\#ffffff\\ made %s\\#ffffff\\\ndrop the \\#ffff40\\Shine\\#ffffff\\!",
+                        aPlayerColor .. aName, playerColor .. np.name), 1)
             else
                 djui_popup_create_global(
-                string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
+                    string.format("%s\\#ffffff\\ dropped the \\#ffff40\\Shine\\#ffffff\\!", playerColor .. np.name), 1)
             end
         end
     elseif dropType == 3 then
@@ -370,7 +370,7 @@ function st_pipe_loop(o)
                 mario_set_forward_vel(m, 0)
                 m.pos.y = pair.oPosY - 320
                 m.vel.y = math.min(0, m.vel.y)
-                m.marioObj.oPosY = m.pos.y -- fix weird issue where the player bounces and ends up in the void
+                m.invincTimer = math.max(m.invincTimer, 5) -- fix weird issue where the player bounces and ends up in the void
             end
 
             m.pos.x = pair.oPosX
@@ -474,7 +474,7 @@ function item_box_init(o)
     hitbox.radius = 80
     hitbox.height = 50
     obj_set_hitbox(o, hitbox)
-    
+
     network_init_object(o, false, {
         'oTimer',
         'oAction',
@@ -516,7 +516,7 @@ function item_box_loop(o)
         sMario.item = item
         sMario.itemUses = 0
         cur_obj_play_sound_1(SOUND_GENERAL_COLLECT_1UP)
-        djui_chat_message_create(tostring(item))
+        --djui_chat_message_create(tostring(item))
         network_send_object(o, true)
     end
     o.oInteractStatus = 0
@@ -529,16 +529,35 @@ function held_item_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oFaceAnglePitch = 0
     o.oFaceAngleYaw = 0
+    cur_obj_disable_rendering()
 end
+
 function held_item_loop(o)
     if o.hookRender == 0 then return end
-    local sMario = gPlayerSyncTable[o.hookRender-1]
-    local m = gMarioStates[o.hookRender-1]
+    local sMario = gPlayerSyncTable[o.hookRender - 1]
+    local m = gMarioStates[o.hookRender - 1]
+
+    if sMario.bulletTimer and sMario.bulletTimer > 0 and is_player_active(m) ~= 0 then
+        if o.unused1 ~= 0 then
+            cur_obj_disable_rendering()
+        else
+            cur_obj_enable_rendering()
+            o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+        end
+        return
+    end
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleRoll = 0
+
     if sMario.item == nil or sMario.item == 0 or is_player_active(m) == 0 then
         cur_obj_disable_rendering()
         return
     end
     local data = item_data[sMario.item]
+
+    if data.updateAnimState then
+        o.oAnimState = o.oAnimState + 1
+    end
 
     if data.hand then
         o.oFaceAngleYaw = 0
@@ -547,9 +566,13 @@ function held_item_loop(o)
         else
             cur_obj_enable_rendering()
             cur_obj_scale(data.scale or 1)
-            on_obj_render(o)
+            if data.bill then
+                obj_set_billboard(o)
+            else
+                o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+            end
         end
-    else -- spin around player
+    else                                                  -- spin around player
         cur_obj_enable_rendering()
         local dir = o.oTimer * 1024 + (o.unused1 * 21845) -- add 1/3 distance for animstate
         if o.oTimer >= 64 then
@@ -559,12 +582,12 @@ function held_item_loop(o)
 
         -- spawn extra items for triples/doubles
         local count = data.count or 1
-        if o.unused1 < count-1 and (o.parentObj == o or o.parentObj == nil) then
+        if o.unused1 < count - 1 and (o.parentObj == o or o.parentObj == nil) then
             local newObj = spawn_non_sync_object(id_bhvHeldItem, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
             o.parentObj = newObj
             newObj.unused1 = o.unused1 + 1
             newObj.hookRender = o.hookRender
-        elseif o.unused1 > count-1 then
+        elseif o.unused1 > count - 1 then
             cur_obj_disable_rendering()
             return
         end
@@ -582,13 +605,35 @@ function held_item_loop(o)
     end
     cur_obj_scale(data.scale or 1)
 end
+
 id_bhvHeldItem = hook_behavior(nil, OBJ_LIST_DEFAULT, true, held_item_init, held_item_loop, "bhvHeldItem")
 
 -- item rendering
 function on_obj_render(o)
     if get_id_from_behavior(o.behavior) ~= id_bhvHeldItem then return end
-    local sMario = gPlayerSyncTable[o.hookRender-1]
-    local m = gMarioStates[o.hookRender-1]
+    local sMario = gPlayerSyncTable[o.hookRender - 1]
+    local m = gMarioStates[o.hookRender - 1]
+
+    if sMario.bulletTimer > 0 and is_player_active(m) ~= 0 then
+        if o.unused1 == 0 then
+            cur_obj_scale(1)
+            obj_set_model_extended(o, E_MODEL_BULLET_BILL)
+            o.oPosX = m.pos.x
+            o.oPosY = m.pos.y + 40
+            o.oPosZ = m.pos.z
+            o.oFaceAnglePitch = -m.faceAngle.x
+            o.oFaceAngleYaw = m.faceAngle.y
+            o.oFaceAngleRoll = m.faceAngle.z
+            o.header.gfx.pos.x = o.oPosX
+            o.header.gfx.pos.y = o.oPosY
+            o.header.gfx.pos.z = o.oPosZ
+            o.header.gfx.angle.x = o.oFaceAnglePitch
+            o.header.gfx.angle.y = o.oFaceAngleYaw
+            o.header.gfx.angle.z = o.oFaceAngleRoll
+        end
+        return
+    end
+
     if sMario.item == nil or sMario.item == 0 or is_player_active(m) == 0 then
         return
     end
@@ -600,8 +645,23 @@ function on_obj_render(o)
         o.oPosX = get_hand_foot_pos_x(m, 0)
         o.oPosY = get_hand_foot_pos_y(m, 0) + (data.yOffset or 0)
         o.oPosZ = get_hand_foot_pos_z(m, 0)
+        if m.action & (ACT_FLAG_SWIMMING_OR_FLYING) ~= 0 then
+            o.oPosX = m.pos.x
+            o.oPosY = m.pos.y + 100 + (data.yOffset or 0)
+            o.oPosZ = m.pos.z
+        end
+        o.oFaceAnglePitch = m.faceAngle.x
+        o.oFaceAngleYaw = m.faceAngle.y
+        o.oFaceAngleRoll = m.faceAngle.z
+        o.header.gfx.pos.x = o.oPosX
+        o.header.gfx.pos.y = o.oPosY
+        o.header.gfx.pos.z = o.oPosZ
+        o.header.gfx.angle.x = o.oFaceAnglePitch
+        o.header.gfx.angle.y = o.oFaceAngleYaw
+        o.header.gfx.angle.z = o.oFaceAngleRoll
     end
 end
+
 hook_event(HOOK_ON_OBJECT_RENDER, on_obj_render)
 
 -- custom shells that only do the ride action (slightly based on shell rush (gamemode))
@@ -699,6 +759,14 @@ end
 hook_behavior(id_bhvBowser, OBJ_LIST_GENACTOR, false, nil, custom_bowser_loop, "id_bhvBowser")
 
 -- delete objects
+function set_spawn_potential(o)
+    if not already_spawn[o] then
+        table.insert(spawn_potential, { o.oPosX, o.oPosY + 160, o.oPosZ })
+        already_spawn[o] = 1
+    end
+    obj_mark_for_deletion(o)
+end
+
 local id_level_exception = {
     [id_bhvLllRotatingHexFlame] = 1,
     [id_bhvBowserFlameSpawn] = 1,
@@ -733,15 +801,24 @@ local id_delete = {
     [id_bhvTuxiesMother] = 1,
     [id_bhvPenguinBaby] = 1,
     [id_bhvSmallPenguin] = 1,
+    [id_bhvCapSwitch] = 0,
+    [id_bhv1Up] = 0,
+    [id_bhvRecoveryHeart] = 0,
+    [id_bhvRedCoin] = 0,
+    [id_bhvHiddenStarTrigger] = 0,
 }
 for id, v in pairs(id_delete) do
-    hook_behavior(id, OBJ_LIST_DEFAULT, true, obj_mark_for_deletion, nil)
+    if v == 1 then
+        hook_behavior(id, OBJ_LIST_DEFAULT, true, obj_mark_for_deletion, nil)
+    else
+        hook_behavior(id, OBJ_LIST_DEFAULT, true, set_spawn_potential, nil)
+    end
 end
 --- @param o Object
 function delete_level(o)
     local id = get_id_from_behavior(o.behavior)
     if id == id_bhvStar then
-        table.insert(spawn_potential, { o.oPosX, o.oPosY, o.oPosZ })
+        table.insert(spawn_potential, 1, { o.oPosX, o.oPosY, o.oPosZ })
         obj_mark_for_deletion(o)
     elseif ((get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL and (not id_level_exception[id]) and id ~= id_bhvShine)) then
         obj_mark_for_deletion(o)
@@ -777,7 +854,7 @@ hook_event(HOOK_UPDATE, remove_timestop)
 already_spawn = {}
 function replace_shine(o)
     if not already_spawn[o] then
-        table.insert(spawn_potential, { o.oPosX, o.oPosY, o.oPosZ })
+        table.insert(spawn_potential, 1, { o.oPosX, o.oPosY, o.oPosZ })
         already_spawn[o] = 1
     end
     obj_mark_for_deletion(o)

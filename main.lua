@@ -46,6 +46,7 @@ local cappyStealer = 0
 local shineFrameCounter = 0
 local showTimeTimer = 0
 SPECIAL_BUTTON = (_G.OmmEnabled and L_TRIG) or Y_BUTTON
+ITEM_BUTTON = (_G.OmmEnabled and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
 isRomHack = false
 localWinner = 0
 localWinner2 = -1
@@ -131,6 +132,8 @@ function spectator_mode()
         sMario.item = 0
         sMario.itemUses = 0
         sMario.mushroomTime = 0
+        sMario.star = false
+        sMario.bulletTimer = 0
         gMarioStates[0].capTimer = 0
         stop_cap_music()
         if gGlobalSyncTable.gameState ~= 3 then
@@ -213,7 +216,7 @@ function before_phys_step(m)
             end
         end
 
-        if m.actionState == 0 and m.floor.type == SURFACE_VERTICAL_WIND and m.vel.y < 20 then
+        if m.actionState == 0 and m.floor.type == SURFACE_VERTICAL_WIND and m.vel.y < 20 and m.pos.y < -1000 then
             m.vel.y = 20 -- initial vertical boost
         end
     end
@@ -457,11 +460,55 @@ function mario_update(m)
         end
     end
 
+    -- star effect
+    if sMario.star then
+        if m.playerIndex == 0 and m.capTimer == 0 then
+            sMario.star = false
+        end
+        local r, g, b = hue_shift_over_time(m.marioObj.oTimer, 60)
+        m.marioBodyState.shadeR = r
+        m.marioBodyState.shadeG = g
+        m.marioBodyState.shadeB = b
+        set_mario_particle_flags(m, ACTIVE_PARTICLE_SPARKLES, 0)
+    else
+        m.marioBodyState.shadeR = 127
+        m.marioBodyState.shadeG = 127
+        m.marioBodyState.shadeB = 127
+    end
+
     -- render item
-    if is_player_active(m) ~= 0 and sMario.item and sMario.item ~= 0 and not renderItemExists[m.playerIndex] then
+    if is_player_active(m) ~= 0 and ((sMario.item and sMario.item ~= 0) or sMario.bulletTimer ~= 0) and not renderItemExists[m.playerIndex] then
         local o = spawn_non_sync_object(id_bhvHeldItem, E_MODEL_NONE, m.pos.x, m.pos.y, m.pos.z, nil)
         renderItemExists[m.playerIndex] = 1
         o.hookRender = m.playerIndex + 1 -- plus one so its non-zero
+    end
+
+    -- bullet bill
+    if m.playerIndex == 0 and sMario.bulletTimer and sMario.bulletTimer > 0 then
+        sMario.bulletTimer = sMario.bulletTimer - 1
+        m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags | GRAPH_RENDER_INVISIBLE
+        if m.action & ACT_FLAG_SWIMMING ~= 0 or m.action & ACT_FLAG_SWIMMING_OR_FLYING == 0 then
+            m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags & ~GRAPH_RENDER_INVISIBLE
+            m.flags = m.flags & ~MARIO_WING_CAP
+            sMario.bulletTimer = 0
+            local o = spawn_sync_object(id_bhvThrownBobomb,
+            E_MODEL_NONE,
+            m.pos.x, m.pos.y, m.pos.z,
+            function(o)
+                o.oForwardVel = 0
+                o.oVelY = -20
+                o.oObjectOwner = np.globalIndex
+            end)
+            if o then
+                o.oInteractStatus = INT_STATUS_INTERACTED
+            end
+        elseif sMario.bulletTimer == 0 then
+            m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags & ~GRAPH_RENDER_INVISIBLE
+            if gGlobalSyncTable.variant ~= 2 and gGlobalSyncTable.variant ~= 7 then
+                m.flags = m.flags & ~MARIO_WING_CAP
+                set_mario_action(m, ACT_FREEFALL, 0)
+            end
+        end
     end
 
     -- items and shine passing
@@ -680,31 +727,67 @@ function is_hazard_floor(type)
         return true
     end
     return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING) and
-    (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
+        (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
 end
 
--- from arena (used for bombs and items)
-function set_action_after_toss(m, newYaw_)
+-- used for bombs and items
+function set_action_after_toss(m, newYaw_, arg_)
+    local arg = arg_ or 1
     local newYaw = newYaw_ or m.faceAngle.y
-    if (m.action & ACT_FLAG_INVULNERABLE) ~= 0 or (m.action & ACT_FLAG_INTANGIBLE) ~= 0 then
+    if (m.action & ACT_FLAG_INVULNERABLE) ~= 0 or (m.action & ACT_FLAG_INTANGIBLE) ~= 0 or ((m.action & ACT_FLAG_SWIMMING) == 0 and (m.action & ACT_FLAG_SWIMMING_OR_FLYING) ~= 0) or (m.action & ACT_FLAG_RIDING_SHELL) ~= 0 then
         -- nothing
+        play_character_sound(m, CHAR_SOUND_PUNCH_YAH)
     elseif (m.action == ACT_SHOT_FROM_CANNON) then
         -- nothing
+        play_character_sound(m, CHAR_SOUND_PUNCH_YAH)
     elseif (m.action & ACT_FLAG_SWIMMING) ~= 0 then
         set_mario_action(m, ACT_WATER_PUNCH, 0)
         m.faceAngle.y = newYaw
-    elseif (m.action & ACT_FLAG_MOVING) ~= 0 then
-        set_mario_action(m, ACT_MOVE_PUNCHING, 0)
+    elseif (m.action & ACT_FLAG_MOVING) ~= 0 or (m.action & ACT_FLAG_STATIONARY) ~= 0 then
+        set_mario_action(m, ACT_ITEM_THROW_GROUND, arg)
         m.faceAngle.y = newYaw
     elseif (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_GROUND_POUND then
-        local prevVel = m.vel.y
-        set_mario_action(m, ACT_JUMP_KICK, 0) -- I prefer this
-        m.vel.y = prevVel                 -- prevent stalling
-        m.faceAngle.y = newYaw
-    elseif (m.action & ACT_FLAG_STATIONARY) ~= 0 then
-        set_mario_action(m, ACT_PUNCHING, 0)
+        set_mario_action(m, ACT_ITEM_THROW_AIR, arg)
         m.faceAngle.y = newYaw
     end
+end
+
+-- star effect
+function hue_shift_over_time(time, max)
+    local h = time % max * (360/max)
+    local s = 0.8
+    local v = 1
+    -- Now it's time to convert this to RGB, which is very annoying
+    local M = 255 * v
+    local m = M * (1 - s)
+    local z = (M - m) * (1 - math.abs(h / 60 % 2 - 1))
+    -- there's SIX CASES
+    if h < 60 then
+        r = M
+        g = z + m
+        b = m
+    elseif h < 120 then
+        r = z + m
+        g = M
+        b = m
+    elseif h < 180 then
+        r = m
+        g = M
+        b = z + m
+    elseif h < 240 then
+        r = m
+        g = z + m
+        b = M
+    elseif h < 300 then
+        r = z + m
+        g = m
+        b = M
+    else
+        r = M
+        g = m
+        b = z + m
+    end
+    return r, g, b
 end
 
 -- from extended moveset
@@ -812,7 +895,8 @@ end
 function allow_pvp_attack(attacker, victim, item)
     local sAttacker = gPlayerSyncTable[attacker.playerIndex]
     local sVictim = gPlayerSyncTable[victim.playerIndex]
-    return (not item or (sAttacker.spectator or sVictim.spectator)) or (sAttacker.team == 0 or sAttacker.team ~= sVictim.team)
+    return (item or not (sAttacker.spectator or sVictim.spectator)) and
+    (sAttacker.team == 0 or sAttacker.team ~= sVictim.team) and ((not sVictim.star) or sAttacker.star)
 end
 
 hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
@@ -824,9 +908,12 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
     victim.hurtCounter = 0
     if victim.playerIndex == 0 then
         local vOwnedShine = get_player_owned_shine(0)
+        local sVictim = gPlayerSyncTable[victim.playerIndex]
         local sAttacker = gPlayerSyncTable[attacker.playerIndex]
 
-        if not item and ((sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0) or attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP or cappyAttack) then
+        if not item and ((sAttacker.star and not sVictim.star) or (sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0)
+                or attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP
+                or attacker.action == ACT_CAPE_JUMP or attacker.action == ACT_CAPE_SHELL_JUMP or cappyAttack) then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
                 if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
                     cappyStealer = attacker.playerIndex
@@ -910,11 +997,16 @@ function shell_rush_shell(m)
         spawnShell = 1
     end
 
+    local model = E_MODEL_KOOPA_SHELL
+    local shellChance = math.random(1, 20)
+    if shellChance == 1 then
+        model = E_MODEL_RED_SHELL
+    end
     if spawnShell == 2 then
         if m.playerIndex == 0 then
             m.heldObj = spawn_sync_object(
                 id_bhvKoopaShellUnderwater,
-                E_MODEL_KOOPA_SHELL,
+                model,
                 m.pos.x, m.pos.y, m.pos.z,
                 function(o)
                     o.oFaceAnglePitch = 0
@@ -929,7 +1021,7 @@ function shell_rush_shell(m)
         if m.playerIndex == 0 then
             m.riddenObj = spawn_sync_object(
                 id_bhvSTShell,
-                E_MODEL_KOOPA_SHELL,
+                model,
                 m.pos.x, m.pos.y, m.pos.z,
                 function(o)
                     o.oFaceAnglePitch = 0
@@ -938,6 +1030,7 @@ function shell_rush_shell(m)
                     o.heldByPlayerIndex = 0
                 end
             )
+            set_camera_mode(m.area.camera, m.area.camera.defMode, 0)
         end
         set_mario_action(m, ACT_RIDING_SHELL_FALL, 0)
     end
@@ -961,28 +1054,38 @@ function special_pressed(m)
 end
 
 -- check direction item is thrown
--- clockwise starting right and at 0 (no direction is 4)
+-- clockwise starting right and at 0 (no direction is 4, default direction is 5)
 function throw_direction()
     local m = gMarioStates[0]
-    if m.controller.buttonDown & R_TRIG == 0 then
+    if m.controller.buttonPressed & ITEM_BUTTON == 0 then
+        return 4
+    elseif _G.OmmEnabled and m.controller.buttonDown & R_TRIG == 0 then
         return 4
     end
 
-    if m.controller.buttonPressed & U_JPAD ~= 0 then
-        r_press = false
+    if m.controller.buttonDown & U_JPAD ~= 0 then
+        if _G.OmmEnabled then
+            r_press = false
+        end
         return 1
-    elseif m.controller.buttonPressed & D_JPAD ~= 0 then
-        r_press = false
+    elseif m.controller.buttonDown & D_JPAD ~= 0 then
+        if _G.OmmEnabled then
+            r_press = false
+        end
         return 3
-    elseif m.controller.buttonPressed & R_JPAD ~= 0 then
-        r_press = false
+    elseif m.controller.buttonDown & R_JPAD ~= 0 then
+        if _G.OmmEnabled then
+            r_press = false
+        end
         return 0
-    elseif m.controller.buttonPressed & L_JPAD ~= 0 then
-        r_press = false
+    elseif m.controller.buttonDown & L_JPAD ~= 0 then
+        if _G.OmmEnabled then
+            r_press = false
+        end
         return 2
     end
 
-    return 4
+    return 5
 end
 
 -- no!!!! no dialog!!!!
@@ -1001,12 +1104,20 @@ function on_sync_valid()
     end
     sMario.specialCooldown = 0
     sMario.boostTime = 0
-    already_spawn = {}
     renderItemExists = {}
-    setup_level_data(gGlobalSyncTable.gameLevel)
+    
     if gGlobalSyncTable.gameState ~= 0 then
+        already_spawn = {}
+        setup_level_data(gGlobalSyncTable.gameLevel)
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
+    elseif not didFirstJoinStuff then
+        -- nothing
+    elseif isRomHack then
+        setup_level_data(tostring(gLevelValues.entryLevel))
+    else
+        setup_level_data(BASE_LEVELS - 5)
     end
+
     if _G.OmmEnabled then
         gLevelValues.disableActs = false
         omm_disable_feature = _G.OmmApi.omm_disable_feature
@@ -1042,6 +1153,8 @@ function on_sync_valid()
         sMario.item = 0
         sMario.itemUses = 0
         sMario.mushroomTime = 0
+        sMario.star = false
+        sMario.bulletTimer = 0
         sMario.spectator = false
         sMario.myVote = 0
         gMarioStates[0].numStars = 0
@@ -1101,7 +1214,7 @@ function spawn_objects_at_start()
     sync_valid = sync_valid - 1
     if sync_valid ~= 0 then return end
 
-    if gGlobalSyncTable.gameState ~= 0 then
+    if thisLevel then
         local loadingLevel = false
         if network_is_server() then
             local shine = obj_get_first_with_behavior_id(id_bhvShine)
@@ -1113,7 +1226,9 @@ function spawn_objects_at_start()
                     pos[2] = m.pos.y
                 end
                 local needPlat = false
+                local programmedStart = false
                 if thisLevel.shineStart then
+                    programmedStart = true
                     pos = thisLevel.shineStart
                 elseif #spawn_potential > 0 then
                     pos = spawn_potential[1]
@@ -1141,7 +1256,9 @@ function spawn_objects_at_start()
                         pos[1], pos[2] - 120, pos[3],
                         nil
                     )
-                    mark.parentObj = shine
+                    if mark then
+                        mark.parentObj = shine
+                    end
                 else
                     shine = spawn_sync_object(
                         id_bhvShine,
@@ -1157,7 +1274,9 @@ function spawn_objects_at_start()
                         pos[1], pos[2] - 120, pos[3],
                         nil
                     )
-                    mark.parentObj = shine
+                    if mark then
+                        mark.parentObj = shine
+                    end
                     shine = spawn_sync_object(
                         id_bhvShine,
                         E_MODEL_SHINE,
@@ -1172,7 +1291,9 @@ function spawn_objects_at_start()
                         pos[1], pos[2] - 120, pos[3],
                         nil
                     )
-                    mark.parentObj = shine
+                    if mark then
+                        mark.parentObj = shine
+                    end
                 end
 
                 if needPlat then
@@ -1187,6 +1308,12 @@ function spawn_objects_at_start()
                 if #itemBoxLocations > 0 and gGlobalSyncTable.items ~= 0 then
                     for i, pos in ipairs(itemBoxLocations) do
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
+                    end
+                elseif #spawn_potential > 0 then
+                    for i, pos in ipairs(spawn_potential) do
+                        if i ~= 1 or programmedStart then
+                            spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
+                        end
                     end
                 end
             end
@@ -1222,34 +1349,6 @@ function spawn_objects_at_start()
                     )
                 end
             end
-        end
-    elseif network_is_server() then -- lobby shine
-        vote_pick_random_levels(true)
-        local shine = obj_get_first_with_behavior_id(id_bhvShine)
-        if not shine then
-            local pos = { 0, 1066, -1200 }
-            if isRomHack then
-                local m = gMarioStates[0]
-                pos = { m.pos.x, m.floorHeight + 161, m.pos.z + 500 }
-                if m.floor and is_hazard_floor(m.floor.type) then
-                    pos[2] = m.pos.y
-                end
-            end
-            spawn_sync_object(
-                id_bhvShine,
-                E_MODEL_SHINE,
-                pos[1], pos[2], pos[3],
-                function(o)
-                    o.oBehParams = 0x1
-                end
-            )
-
-            spawn_sync_object(
-                id_bhvShineMarker,
-                E_MODEL_TRANSPARENT_STAR,
-                pos[1], pos[2] - 120, pos[3],
-                nil
-            )
         end
     end
 end
@@ -1419,6 +1518,20 @@ function on_packet_showtime(data, self)
     set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
 end
 
+function on_packet_pow_block(data, self)
+    ---@type MarioState
+    local m = gMarioStates[0]
+    set_camera_shake_from_hit(SHAKE_LARGE_DAMAGE)
+    play_sound(SOUND_GENERAL_BIG_POUND, m.marioObj.header.gfx.cameraToObject)
+    if not self and m.action & ACT_FLAG_AIR == 0 then
+        local index = network_local_index_from_global(data.owner)
+        local m2 = gMarioStates[index]
+        m2.marioObj.oDamageOrCoinValue = 3
+        take_damage_and_knock_back(m, m2.marioObj)
+        on_pvp_attack(m2, m, false, true)
+    end
+end
+
 function on_packet_receive(data)
     if sPacketTable[data.id] ~= nil then
         sPacketTable[data.id](data, false)
@@ -1434,6 +1547,7 @@ PACKET_DROP_SHINE = 4
 PACKET_RESET_SHINE = 5
 PACKET_SHOWTIME = 6
 PACKET_MOVE_SHINE = 7
+PACKET_POW_BLOCK = 8
 sPacketTable = {
     [PACKET_VICTORY] = on_packet_victory,
     [PACKET_NEWGAME] = on_packet_new_game,
@@ -1442,4 +1556,5 @@ sPacketTable = {
     [PACKET_RESET_SHINE] = on_packet_reset_shine,
     [PACKET_SHOWTIME] = on_packet_showtime,
     [PACKET_MOVE_SHINE] = on_packet_move_shine,
+    [PACKET_POW_BLOCK] = on_packet_pow_block,
 }

@@ -39,7 +39,7 @@ local tip_general = {
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",
-    "Tip: In Team Mode, press the D-PAD while holding R to pass the Shine.",
+    "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to pass the Shine.",
     "Tip: After 5 minutes, the shine timer will be halved.",
     "Tip: You can enter Spectator Mode in the menu.",
 }
@@ -53,12 +53,23 @@ local tip_variant = {
     "Tip: Hold SPECIAL_BUTTON to boost! This can also be done while flying.",
 }
 local tip_item = {
-    "Tip: Using a Mushroom lets you move faster AND steal the shine on any attack.",
+    "Tip: Using a Mushroom lets you move faster AND steal the Shine on any attack.",
+    "Tip: You can throw items in front of you, behind you, or to the side with the D-PAD.",
+    "Tip: The Cape Feather can be used as a double jump or to steal the Shine.",
+    "Tip: Red Shells can fly to hit players.",
+    "Tip: The Boomerang can be thrown up to 3 times.",
+    "Tip: The POW Block hits any players standing on the ground.",
+    "Tip: The Super Star makes you invincible and lets you attack players just by touching them!",
+    "Tip: Players falling behind will get better items.",
+    "Tip: The Fire Flower can be used 5 times.",
+    "Tip: The Bullet Bill item turns you into a Bullet Bill for 5 seconds.",
 }
 local SPECIAL_BUTTON_STRING = "Y"
+local ITEM_BUTTON_STRING = "X"
 if _G.OmmEnabled then
     tip_general[3] = "Tip: A slide kick or Cappy attack will instantly steal the Shine."
     SPECIAL_BUTTON_STRING = "L"
+    ITEM_BUTTON_STRING = "the D-PAD while holding R"
 end
 
 local TEAM_NAMES = {
@@ -164,7 +175,7 @@ local menu_data = {
         },
         { "Variant", function(x) menuVariant = x end,            currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,    runOnChange = true },
         { "Teams",   function(x) menuTeam = x end,               currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,            runOnChange = true },
-        { "Items",   function(x) gGlobalSyncTable.items = x end, currNum = 1, minNum = 0,  maxNum = 4,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
+        { "Items",   function(x) gGlobalSyncTable.items = x end, currNum = 1, minNum = 0,  maxNum = 3,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
     },
     [6] = {
         {
@@ -299,11 +310,20 @@ function on_hud_render()
         end
 
         if tipNum == 0 then
-            tipNum = math.random(1, #tip_general)
+            if gGlobalSyncTable.items ~= 0 then
+                tipNum = math.random(1, #tip_general+#tip_item)
+            else
+                tipNum = math.random(1, #tip_general)
+            end
         end
         djui_hud_set_font(FONT_MENU)
-        local subText3 = tip_general[tipNum]
-        subText3 = string.gsub(subText3, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
+        local subText3
+        if tipNum > #tip_general then
+            subText3 = tip_item[tipNum-#tip_general]
+        else
+            subText3 = tip_general[tipNum]
+        end
+        subText3 = string.gsub(subText3, "ITEM_BUTTON", ITEM_BUTTON_STRING)
         local scale3 = 0.5
         y = screenHeight - scale3 * 70
         width = djui_hud_measure_text(subText3) * scale3
@@ -410,6 +430,8 @@ function on_hud_render()
                     tipNum = 9 -- always show team tip
                 elseif gNetworkPlayers[0].name == "Unreal" then
                     tipNum = 5 -- always show credit tip
+                elseif gGlobalSyncTable.items ~= 0 then
+                    tipNum = math.random(1, #tip_general + #tip_item)
                 else
                     tipNum = math.random(1, #tip_general)
                 end
@@ -419,7 +441,11 @@ function on_hud_render()
         if tipNum == 0 then
             -- nothing
         elseif gGlobalSyncTable.variant == 0 then
-            subText3 = tip_general[tipNum]
+            if tipNum > #tip_general then
+                subText3 = tip_item[tipNum-#tip_general]
+            else
+                subText3 = tip_general[tipNum]
+            end
         else
             subText3 = tip_variant[gGlobalSyncTable.variant]
         end
@@ -449,6 +475,7 @@ function on_hud_render()
         end
         if subText3 ~= "" then
             subText3 = string.gsub(subText3, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
+            subText3 = string.gsub(subText3, "ITEM_BUTTON", ITEM_BUTTON_STRING)
             local scale3 = 0.5
             y = screenHeight - scale3 * 70
             width = djui_hud_measure_text(subText3) * scale3

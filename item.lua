@@ -2,7 +2,9 @@
 
 E_MODEL_BANANA = smlua_model_util_get_id("banana_geo")
 E_MODEL_RED_SHELL = smlua_model_util_get_id("red_shell_geo")
-E_MODEL_BOOMERANG = E_MODEL_TRANSPARENT_STAR -- TODO: actually make the model
+E_MODEL_BOOMERANG = E_MODEL_TRANSPARENT_STAR -- TODO: actually make the models
+E_MODEL_CAPE = E_MODEL_BOOKEND
+E_MODEL_POW = E_MODEL_EXCLAMATION_BOX
 
 local ITEM_BANANA = 1
 local ITEM_MUSHROOM = 2
@@ -16,6 +18,9 @@ local ITEM_BOOMERANG = 9
 local ITEM_STAR = 10
 local ITEM_BULLET = 11
 local ITEM_POW = 12
+local ITEM_TRIPLE_BANANA = 13
+local ITEM_DOUBLE_BANANA = 14
+local ITEM_FIRE_FLOWER = 15
 item_data = {
     [ITEM_BANANA] = {
         weight = 100,
@@ -23,33 +28,9 @@ item_data = {
         model = E_MODEL_BANANA,
         hand = true,  -- show in hand
         scale = 0.5,
+        defaultDir = 3,
         func = function(dir)
-            local m = gMarioStates[0]
-            local np = gNetworkPlayers[0]
-            set_action_after_toss(m)
-            spawn_sync_object(
-                id_bhvBanana,
-                E_MODEL_BANANA,
-                m.pos.x, m.pos.y + 50, m.pos.z,
-                function(o)
-                    if dir ~= 3 then
-                        if dir == 1 then
-                            o.oForwardVel = m.forwardVel + 50
-                        else
-                            o.oForwardVel = 50
-                        end
-                        o.oVelY = 50
-                        o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
-                    else
-                        o.oForwardVel = m.forwardVel - 10
-                        o.oVelY = 0
-                        o.oMoveAngleYaw = m.faceAngle.y
-                    end
-
-                    o.oFaceAngleYaw = o.oMoveAngleYaw
-                    o.oObjectOwner = np.globalIndex
-                end
-            )
+            banana_general(dir)
             return 0
         end,
     },
@@ -88,21 +69,49 @@ item_data = {
         weight = 60,
         model = E_MODEL_RED_SHELL,
         first = true,
+        func = function(dir)
+            shell_general(dir)
+            return 0
+        end,
     },
     [ITEM_TRIPLE_SHELL] = {
         weight = 10,
         frantic = true,
         model = E_MODEL_RED_SHELL,
         count = 3,
+        func = function(dir)
+            shell_general(dir)
+            return ITEM_DOUBLE_SHELL
+        end,
     },
     [ITEM_DOUBLE_SHELL] = {
         weight = 0,
         model = E_MODEL_RED_SHELL,
         count = 2,
+        func = function(dir)
+            shell_general(dir)
+            return ITEM_SHELL
+        end,
     },
     [ITEM_CAPE] = {
         weight = 70,
         first = true,
+        model = E_MODEL_CAPE,
+        hand = true,
+        func = function(dir)
+            local m = gMarioStates[0]
+            if m.action & ACT_FLAG_SWIMMING ~= 0 then
+                return ITEM_CAPE
+            end
+
+            m.vel.y = 69 -- triple jump height
+            if m.action & ACT_FLAG_RIDING_SHELL == 0 then
+                set_mario_action(m, ACT_CAPE_JUMP, 0)
+            else
+                set_mario_action(m, ACT_CAPE_JUMP_SHELL, 0)
+            end
+            return 0
+        end,
     },
     [ITEM_BOOMERANG] = {
         weight = 40,
@@ -111,10 +120,10 @@ item_data = {
         func = function(dir, uses)
             local m = gMarioStates[0]
             local np = gNetworkPlayers[0]
-            set_action_after_toss(m)
+            set_action_after_toss(m, nil, dir)
             spawn_sync_object(
                 id_bhvBoomerang,
-                E_MODEL_BOOMERANG, -- TODO: should be boomerang
+                E_MODEL_BOOMERANG,
                 m.pos.x, m.pos.y + 50, m.pos.z,
                 function(o)
                     if dir == 1 then
@@ -139,6 +148,15 @@ item_data = {
         model = E_MODEL_STAR,
         yOffset = 40,
         scale = 0.7,
+        func = function(dir)
+            local m = gMarioStates[0]
+            m.capTimer = 300 -- 10 seconds
+            gPlayerSyncTable[0].star = true
+            play_sound(SOUND_GENERAL_SHORT_STAR, m.marioObj.header.gfx.cameraToObject)
+            play_cap_music(SEQ_EVENT_POWERUP)
+            play_character_sound(m, CHAR_SOUND_HERE_WE_GO)
+            return 0
+        end
     },
     [ITEM_BULLET] = {
         weight = 40, -- not as good as in mario kart
@@ -146,10 +164,96 @@ item_data = {
         model = E_MODEL_BULLET_BILL,
         yOffset = 40,
         scale = 0.2,
+        func = function(dir)
+            local m = gMarioStates[0]
+            if m.action & ACT_FLAG_SWIMMING ~= 0 then
+                return ITEM_BULLET
+            end
+
+            m.faceAngle.y = m.faceAngle.y + (dir - 1) * 0x4000
+            gPlayerSyncTable[0].bulletTimer = 150
+            m.flags = m.flags | MARIO_WING_CAP
+            m.forwardVel = math.max(m.forwardVel, 50)
+            play_sound(SOUND_OBJ_CANNON4, m.marioObj.header.gfx.cameraToObject)
+            if m.action == ACT_FLYING then
+                -- nothing
+            elseif m.action & ACT_FLAG_AIR == 0 then
+                m.faceAngle.x = 0x2000
+            else
+                m.faceAngle.x = 0
+            end
+            set_mario_action(m, ACT_FLYING, 0)
+            return 0
+        end,
     },
     [ITEM_POW] = {
         weight = 5,
         frantic = true,
+        model = E_MODEL_POW,
+        func = function()
+            network_send_include_self(true, {
+                id = PACKET_POW_BLOCK,
+                owner = gNetworkPlayers[0].globalIndex,
+            })
+            return 0
+        end,
+    },
+    [ITEM_TRIPLE_BANANA] = {
+        weight = 20,
+        first = true,
+        count = 3,
+        model = E_MODEL_BANANA,
+        defaultDir = 3,
+        func = function(dir)
+            banana_general(dir)
+            return ITEM_DOUBLE_BANANA
+        end,
+    },
+    [ITEM_DOUBLE_BANANA] = {
+        weight = 0,
+        count = 2,
+        model = E_MODEL_BANANA,
+        defaultDir = 3,
+        func = function(dir)
+            banana_general(dir)
+            return ITEM_BANANA
+        end,
+    },
+    [ITEM_FIRE_FLOWER] = {
+        weight = 20,
+        frantic = true,
+        hand = true,
+        bill = true,
+        scale = 2,
+        model = E_MODEL_RED_FLAME,
+        updateAnimState = true,
+        func = function(dir, uses)
+            local m = gMarioStates[0]
+            local np = gNetworkPlayers[0]
+            set_action_after_toss(m, nil, dir)
+            spawn_sync_object(
+                id_bhvFireball,
+                E_MODEL_RED_FLAME,
+                m.pos.x, m.pos.y + 50, m.pos.z,
+                function(o)
+                    if dir == 1 then
+                        o.oForwardVel = m.forwardVel + 50
+                    else
+                        o.oForwardVel = 50
+                    end
+                    o.oVelY = 0
+                    o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
+
+                    o.oFaceAngleYaw = o.oMoveAngleYaw
+                    o.oObjectOwner = np.globalIndex
+                end
+            )
+            uses = uses + 1
+            if uses < 5 then
+                return ITEM_FIRE_FLOWER, uses
+            end
+            return 0
+        end
     },
 }
 
@@ -210,8 +314,13 @@ function random_item()
     return ITEM_BANANA -- default (shouldn't happen but who knows)
 end
 
-function use_item(item, dir, uses)
+function use_item(item, dir_, uses)
     local data = item_data[item]
+    local dir = dir_
+    if dir == 5 then
+        dir = data.defaultDir or 1
+    end
+
     if data.func then
         return data.func(dir, uses or 0)
     else
@@ -223,6 +332,52 @@ end
 function mushroom_general()
     play_character_sound(gMarioStates[0], CHAR_SOUND_YAHOO_WAHA_YIPPEE)
     gPlayerSyncTable[0].mushroomTime = 60
+end
+
+function banana_general(dir)
+    local m = gMarioStates[0]
+    local np = gNetworkPlayers[0]
+    set_action_after_toss(m, nil, dir)
+    spawn_sync_object(
+        id_bhvBanana,
+        E_MODEL_BANANA,
+        m.pos.x, m.pos.y + 50, m.pos.z,
+        function(o)
+            if dir ~= 3 then
+                if dir == 1 then
+                    o.oForwardVel = m.forwardVel + 50
+                else
+                    o.oForwardVel = 50
+                end
+                o.oVelY = 50
+                o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
+            else
+                o.oForwardVel = m.forwardVel - 10
+                o.oVelY = 0
+                o.oMoveAngleYaw = m.faceAngle.y
+            end
+
+            o.oFaceAngleYaw = o.oMoveAngleYaw
+            o.oObjectOwner = np.globalIndex
+        end
+    )
+end
+
+function shell_general(dir)
+    local m = gMarioStates[0]
+    local np = gNetworkPlayers[0]
+    set_action_after_toss(m, nil, dir)
+    spawn_sync_object(
+        id_bhvRedShell,
+        E_MODEL_RED_SHELL,
+        m.pos.x, m.pos.y + 50, m.pos.z,
+        function(o)
+            o.oForwardVel = m.forwardVel + 50
+            o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
+            o.oFaceAngleYaw = o.oMoveAngleYaw
+            o.oObjectOwner = np.globalIndex
+        end
+    )
 end
 
 -- banana (based on bomb)
@@ -248,16 +403,15 @@ function banana_init(o)
     obj_set_hitbox(o, hitbox)
 
     cur_obj_init_animation(1)
-    network_init_object(o, true, {
-    })
+    network_init_object(o, true, {})
 end
 
 --- @param o Object
 function banana_loop(o)
-    local collisionFlags = object_step();
-    if collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then
+    local stepResult = object_step();
+    if stepResult & OBJ_MOVE_LANDED ~= 0 then
         o.oForwardVel = 0
-        o.oVelY = 0
+        o.oVelY = -10
         cur_obj_update_floor()
         if is_hazard_floor(o.oFloorType) then
             obj_mark_for_deletion(o)
@@ -270,7 +424,7 @@ end
 
 id_bhvBanana = hook_behavior(nil, OBJ_LIST_GENACTOR, true, banana_init, banana_loop, "bhvBanana")
 
--- boomerang (wip)
+-- boomerang
 --- @param o Object
 function boomerang_init(o)
     o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
@@ -306,15 +460,17 @@ end
 
 --- @param o Object
 function boomerang_loop(o)
-    local collisionFlags = object_step_without_floor_orient()
+    local stepResult = object_step_without_floor_orient()
     local index = network_local_index_from_global(o.oObjectOwner) or 1
 
-    if collisionFlags & OBJ_COL_FLAG_HIT_WALL ~= 0 then
+    if stepResult & OBJ_COL_FLAG_HIT_WALL ~= 0 then
         if o.oAnimState > 2 then
-            spawn_triangle_break_particles(2, 0x8B, 0.25, 1) -- MODEL_CARTOON_STAR
+            spawn_triangle_break_particles(2, 0x8B, 0.25, 2) -- MODEL_CARTOON_STAR
             obj_mark_for_deletion(o)
         elseif o.oAction == 0 then
             cur_obj_change_action(1)
+        elseif o.oForwardVel > 0 then
+            o.oForwardVel = -20
         end
     end
 
@@ -327,20 +483,21 @@ function boomerang_loop(o)
             end
         end
     else -- return
-        if o.oForwardVel < 50 then
-            o.oForwardVel = o.oForwardVel + 2
-        end
-        
         local m = gMarioStates[index]
+        local vel = math.max(m.forwardVel + 5, 50)
+        if o.oForwardVel < vel then
+            o.oForwardVel = approach_s32(o.oForwardVel, vel, 2, 2)
+        end
+
         o.oMoveAngleYaw = obj_angle_to_object(o, m.marioObj)
         if m.pos.y - o.oPosY > 100 or m.pos.y - o.oPosY < -100 then
             o.oVelY = (m.pos.y - o.oPosY) // 10
-        elseif o.oForwardVel >= 50 then
+        elseif o.oForwardVel >= vel then
             o.oVelY = 0
         end
 
         local dist = dist_between_objects(o, m.marioObj)
-        if dist <= 100 and index == 0 then
+        if dist <= 120 and index == 0 then
             if gPlayerSyncTable[0].item == 0 then
                 gPlayerSyncTable[0].item = ITEM_BOOMERANG
                 gPlayerSyncTable[0].itemUses = o.oAnimState
@@ -350,7 +507,7 @@ function boomerang_loop(o)
     end
 
     if o.oTimer > 300 then
-        spawn_triangle_break_particles(2, 0x8B, 0.25, 1) -- MODEL_CARTOON_STAR
+        spawn_triangle_break_particles(2, 0x8B, 0.25, 2) -- MODEL_CARTOON_STAR
         obj_mark_for_deletion(o)
     end
 
@@ -360,3 +517,147 @@ function boomerang_loop(o)
 end
 
 id_bhvBoomerang = hook_behavior(nil, OBJ_LIST_GENACTOR, true, boomerang_init, boomerang_loop, "bhvBoomerang")
+
+-- shell
+--- @param o Object
+function red_shell_init(o)
+    o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleRoll = 0
+    o.oAction = 0
+    o.oGravity = 0
+    o.oBuoyancy = 1.5
+    o.oFriction = 1
+
+    local hitbox = get_temp_object_hitbox()
+    hitbox.damageOrCoinValue = 2
+    hitbox.radius = 100
+    hitbox.height = 100
+    hitbox.hurtboxRadius = 150
+    hitbox.hurtboxHeight = 150
+    hitbox.downOffset = 0
+    hitbox.interactType = INTERACT_DAMAGE
+    obj_set_hitbox(o, hitbox)
+
+    cur_obj_init_animation(1)
+    network_init_object(o, true, {})
+end
+
+--- @param o Object
+function red_shell_loop(o)
+    local stepResult = object_step_without_floor_orient()
+    local index = network_local_index_from_global(o.oObjectOwner) or 1
+
+    if stepResult & OBJ_COL_FLAG_HIT_WALL ~= 0 then
+        spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
+        obj_mark_for_deletion(o)
+    end
+
+    local maxDist = 2000
+    local targetIndex = network_local_index_from_global(o.oAnimState - 1) or 255
+    local team = gPlayerSyncTable[index].team or 0
+    for i = 0, MAX_PLAYERS - 1 do -- target closest opponent
+        local sMario = gPlayerSyncTable[i]
+        local m = gMarioStates[i]
+        if i ~= index and is_player_active(m) ~= 0 and m.invincTimer == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator then
+            local dist = dist_between_objects(o, m.marioObj)
+            if dist < maxDist then
+                maxDist = dist
+                targetIndex = i
+            end
+        end
+    end
+
+    o.oFaceAngleYaw = o.oFaceAngleYaw + 0x2000
+    if targetIndex and targetIndex ~= 255 then
+        if targetIndex == 0 then
+            cur_obj_play_sound_1(SOUND_MOVING_ALMOST_DROWNING)
+        end
+        o.oAnimState = network_global_index_from_local(targetIndex) + 1
+
+        local m = gMarioStates[targetIndex]
+        local vel = math.max(m.forwardVel + 2, 35)
+        if o.oForwardVel < vel then
+            o.oForwardVel = approach_s32(o.oForwardVel, vel, 2, 2)
+        end
+
+        local yaw = obj_angle_to_object(o, m.marioObj)
+        o.oMoveAngleYaw = approach_s16_symmetric(o.oMoveAngleYaw, yaw, 0x1000)
+        if m.pos.y - o.oPosY > 100 or m.pos.y - o.oPosY < -100 then
+            o.oVelY = (m.pos.y - o.oPosY) // 10
+        elseif o.oForwardVel >= vel then
+            o.oVelY = 0
+        end
+    end
+
+    if o.oTimer > 300 or (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
+        spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
+        obj_mark_for_deletion(o)
+    end
+end
+
+id_bhvRedShell = hook_behavior(nil, OBJ_LIST_GENACTOR, true, red_shell_init, red_shell_loop, "bhvRedShell")
+
+-- fireballs
+--- @param o Object
+function fireball_init(o)
+    o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleRoll = 0
+    o.oAction = 0
+    o.oGravity = 4
+    o.oBuoyancy = 1.5
+    o.oFriction = 1
+    o.oBounciness = 1
+
+    local hitbox = get_temp_object_hitbox()
+    hitbox.damageOrCoinValue = 2
+    hitbox.radius = 100
+    hitbox.height = 100
+    hitbox.hurtboxRadius = 150
+    hitbox.hurtboxHeight = 150
+    hitbox.downOffset = 0
+    hitbox.interactType = INTERACT_FLAME
+    obj_set_hitbox(o, hitbox)
+    obj_set_billboard(o)
+    cur_obj_scale(3)
+
+    cur_obj_init_animation(1)
+    network_init_object(o, true, {})
+end
+
+--- @param o Object
+function fireball_loop(o)
+    if o.oTimer == 1 then
+        cur_obj_play_sound_1(SOUND_OBJ_FLAME_BLOWN)
+    end
+    local stepResult = object_step_without_floor_orient()
+    o.oAnimState = o.oAnimState + 1
+    if stepResult & OBJ_MOVE_LANDED ~= 0 then
+        cur_obj_play_sound_1(SOUND_AIR_BOWSER_SPIT_FIRE)
+        if o.oFlameSpeedTimerOffset > 5 then
+            spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
+            obj_mark_for_deletion(o)
+        else
+            o.oFlameSpeedTimerOffset = o.oFlameSpeedTimerOffset + 1
+            o.oVelY = 30
+        end
+    end
+
+    if o.oTimer > 300 or (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
+        spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
+        obj_mark_for_deletion(o)
+    end
+end
+
+id_bhvFireball = hook_behavior(nil, OBJ_LIST_GENACTOR, true, fireball_init, fireball_loop, "bhvFireBall")
+
+local item_id_list = {
+    [id_bhvRedShell] = 1,
+    [id_bhvBanana] = 1,
+    [id_bhvBoomerang] = 1,
+    [id_bhvFireball] = 1,
+}
+function is_item(id)
+    return item_id_list[id] ~= nil or id == id_bhvThrownBobomb
+end
