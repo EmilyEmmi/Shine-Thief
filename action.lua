@@ -120,7 +120,7 @@ function allow_interact(m,o,type)
     if type == INTERACT_BBH_ENTRANCE then return false end
     if type == INTERACT_DAMAGE and o.oObjectOwner then
         local np = network_player_from_global_index(o.oObjectOwner or 0)
-        return (np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], item))
+        return (np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], true))
     end
 end
 hook_event(HOOK_ALLOW_INTERACT, allow_interact)

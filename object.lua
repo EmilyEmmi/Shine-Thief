@@ -524,7 +524,7 @@ end
 
 id_bhvItemBox = hook_behavior(nil, OBJ_LIST_GENACTOR, true, item_box_init, item_box_loop, "bhvItemBox")
 
--- held items by players (wip)
+-- held items by players
 function held_item_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oFaceAnglePitch = 0
@@ -546,6 +546,8 @@ function held_item_loop(o)
             cur_obj_disable_rendering()
         else
             cur_obj_enable_rendering()
+            cur_obj_scale(data.scale or 1)
+            on_obj_render(o)
         end
     else -- spin around player
         cur_obj_enable_rendering()

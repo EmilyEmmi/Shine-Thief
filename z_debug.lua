@@ -241,6 +241,13 @@ function round_angle(msg)
     return true
 end
 
+function give_item(msg)
+    local num = tonumber(msg) or 9
+    gPlayerSyncTable[0].item = num
+    gPlayerSyncTable[0].itemUses = 0
+    return true
+end
+
 -- debug free move
 DEBUG_INVIS = false
 function act_debug_free_move(m)
@@ -309,6 +316,7 @@ if network_is_server() and cheatsOn then
     hook_chat_command("debug","- Toggle debug mode",debug_mode)
     hook_chat_command("round","[NUM] - round mario's pos",round_pos)
     hook_chat_command("angle","[NUM] - round mario's angle",round_angle)
+    hook_chat_command("item","[NUM] - give yourself this item",give_item)
     djui_popup_create("Cheats Detected - Debug mode has been unlocked!",1)
 end
 

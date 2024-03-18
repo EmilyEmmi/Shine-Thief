@@ -233,10 +233,18 @@ function before_phys_step(m)
         if (m.pos.y - math.max(256, m.floorHeight) > 3000) then
             speed_min = 0
             speed_cap = 30
-        elseif sMario.boostTime ~= 0 then
-            speed_min = speed_min + 20
-            if m.forwardVel < speed_cap then
-                m.forwardVel = math.min(m.forwardVel + 3, speed_cap)
+        else
+            if sMario.boostTime ~= 0 then
+                speed_min = speed_min + 20
+                if m.forwardVel < speed_cap then
+                    m.forwardVel = math.min(m.forwardVel + 3, speed_cap)
+                end
+            end
+            if sMario.mushroomTime ~= 0 then
+                speed_min = speed_min + 20
+                if m.forwardVel < speed_cap then
+                    m.forwardVel = math.min(m.forwardVel + 3, speed_cap)
+                end
             end
         end
 
@@ -495,7 +503,7 @@ function mario_update(m)
     -- moon gravity variant
     if gGlobalSyncTable.variant == 4 and (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_TWIRLING and m.action ~= ACT_SHOT_FROM_CANNON then
         if m.vel.y < -25 then
-            if m.controller.buttonDown & Z_TRIG ~= 0 then
+            if m.controller.buttonDown & Z_TRIG == 0 then
                 m.vel.y = -25
             elseif m.vel.y < -50 then
                 m.vel.y = -50
@@ -521,26 +529,7 @@ function mario_update(m)
             )
         end
 
-        -- from arena
-        if (m.action & ACT_FLAG_INVULNERABLE) ~= 0 or (m.action & ACT_FLAG_INTANGIBLE) ~= 0 then
-            -- nothing
-        elseif (m.action == ACT_SHOT_FROM_CANNON) then
-            -- nothing
-        elseif (m.action & ACT_FLAG_SWIMMING) ~= 0 then
-            set_mario_action(m, ACT_WATER_PUNCH, 0)
-            m.faceAngle.y = m.intendedYaw
-        elseif (m.action & ACT_FLAG_MOVING) ~= 0 then
-            set_mario_action(m, ACT_MOVE_PUNCHING, 0)
-            m.faceAngle.y = m.intendedYaw
-        elseif (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_GROUND_POUND then
-            local prevVel = m.vel.y
-            set_mario_action(m, ACT_JUMP_KICK, 0) -- I prefer this
-            m.vel.y = prevVel                     -- prevent stalling
-            m.faceAngle.y = m.intendedYaw
-        elseif (m.action & ACT_FLAG_STATIONARY) ~= 0 then
-            set_mario_action(m, ACT_PUNCHING, 0)
-            m.faceAngle.y = m.intendedYaw
-        end
+        set_action_after_toss(m, m.intendedYaw)
         sMario.specialCooldown = 15
     end
 
@@ -690,7 +679,32 @@ function is_hazard_floor(type)
     if (type == SURFACE_DEATH_PLANE or type == SURFACE_VERTICAL_WIND) then
         return true
     end
-    return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING) and (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
+    return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING) and
+    (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
+end
+
+-- from arena (used for bombs and items)
+function set_action_after_toss(m, newYaw_)
+    local newYaw = newYaw_ or m.faceAngle.y
+    if (m.action & ACT_FLAG_INVULNERABLE) ~= 0 or (m.action & ACT_FLAG_INTANGIBLE) ~= 0 then
+        -- nothing
+    elseif (m.action == ACT_SHOT_FROM_CANNON) then
+        -- nothing
+    elseif (m.action & ACT_FLAG_SWIMMING) ~= 0 then
+        set_mario_action(m, ACT_WATER_PUNCH, 0)
+        m.faceAngle.y = newYaw
+    elseif (m.action & ACT_FLAG_MOVING) ~= 0 then
+        set_mario_action(m, ACT_MOVE_PUNCHING, 0)
+        m.faceAngle.y = newYaw
+    elseif (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_GROUND_POUND then
+        local prevVel = m.vel.y
+        set_mario_action(m, ACT_JUMP_KICK, 0) -- I prefer this
+        m.vel.y = prevVel                 -- prevent stalling
+        m.faceAngle.y = newYaw
+    elseif (m.action & ACT_FLAG_STATIONARY) ~= 0 then
+        set_mario_action(m, ACT_PUNCHING, 0)
+        m.faceAngle.y = newYaw
+    end
 end
 
 -- from extended moveset
@@ -798,7 +812,7 @@ end
 function allow_pvp_attack(attacker, victim, item)
     local sAttacker = gPlayerSyncTable[attacker.playerIndex]
     local sVictim = gPlayerSyncTable[victim.playerIndex]
-    return (sAttacker.spectator or sVictim.spectator) or (sAttacker.team == 0 or sAttacker.team ~= sVictim.team)
+    return (not item or (sAttacker.spectator or sVictim.spectator)) or (sAttacker.team == 0 or sAttacker.team ~= sVictim.team)
 end
 
 hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
@@ -979,7 +993,7 @@ end
 hook_event(HOOK_ON_DIALOG, on_dialog)
 
 -- set our status when we enter
-local sync_valid = false
+local sync_valid = 0
 function on_sync_valid()
     local sMario = gPlayerSyncTable[0]
     if get_player_owned_shine(0) ~= 0 then -- if we just entered, we obviously don't have the shine
@@ -1017,7 +1031,7 @@ function on_sync_valid()
         set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
     end
 
-    sync_valid = true
+    sync_valid = 3
 
     if not didFirstJoinStuff then
         print("My global index is ", gNetworkPlayers[0].globalIndex)
@@ -1038,7 +1052,7 @@ function on_sync_valid()
 
         sMario.team = calculate_lowest_member_team()
         if _G.OmmEnabled then
-            _G.OmmApi.omm_force_setting("player", 2)
+            _G.OmmApi.omm_force_setting("player", PLAYER_INTERACTIONS_SOLID)
             _G.OmmApi.omm_force_setting("color", 0)
             _G.OmmApi.omm_force_setting("powerups", 0)
             _G.OmmApi.omm_force_setting("stars", 0)
@@ -1078,13 +1092,15 @@ function on_sync_valid()
         didFirstJoinStuff = true
     end
 end
+
 hook_event(HOOK_ON_SYNC_VALID, on_sync_valid)
 
 -- spawn objects (done in this weird way to prevent sync bugs)
 function spawn_objects_at_start()
-    if not sync_valid then return end
-    sync_valid = false
-    
+    if sync_valid == 0 then return end
+    sync_valid = sync_valid - 1
+    if sync_valid ~= 0 then return end
+
     if gGlobalSyncTable.gameState ~= 0 then
         local loadingLevel = false
         if network_is_server() then
@@ -1169,11 +1185,11 @@ function spawn_objects_at_start()
                 end
 
                 if #itemBoxLocations > 0 and gGlobalSyncTable.items ~= 0 then
-                    for i,pos in ipairs(itemBoxLocations) do
+                    for i, pos in ipairs(itemBoxLocations) do
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
                     end
                 end
-            end    
+            end
         end
 
         if thisLevel.objLocations then
@@ -1237,6 +1253,7 @@ function spawn_objects_at_start()
         end
     end
 end
+
 hook_event(HOOK_UPDATE, spawn_objects_at_start)
 
 -- no star select
