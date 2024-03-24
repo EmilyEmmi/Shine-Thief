@@ -1,6 +1,6 @@
--- name: \\#ffff40\\Shine Thief (v1.5 WIP)
+-- name: \\#ffff40\\Shine Thief (v2.0 WIP)
 -- description: Stealing mods is a bannable offense.
--- description_actual: Shine Thief from Mario Kart: Double Dash and Mario Kart 8 Deluxe, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nShine Dynos by Blocky\n\nSome graphics/sounds created/provided by NeedleN64\n\nMcDonalds by chillyzone\nArena by Agent X\nArena stage base by angelicmiracles
+-- description_actual: Shine Thief from Mario Kart: Double Dash and Mario Kart 8 Deluxe, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nAdditional network programming EmeraldLockdown\n\nShine Dynos by Blocky\n\nSome graphics/sounds created/provided by NeedleN64, viandegras, (\n\nMcDonalds by chillyzone\nArena by Agent X
 -- incompatible: gamemode
 
 gGlobalSyncTable.gameLevel = 0
@@ -23,6 +23,7 @@ gGlobalSyncTable.teamMode = 0
 gGlobalSyncTable.variant = 0
 gGlobalSyncTable.mapChoice = 0
 gGlobalSyncTable.items = 1
+gGlobalSyncTable.godMode = false
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
@@ -79,7 +80,7 @@ function new_game(msg)
     end
 
     setup_level_data(level)
-    if not (warp_to_level(thisLevel.level, thisLevel.area, 6) or warp_to_warpnode(thisLevel.level, thisLevel.area, 6, 0)) then
+    if not (warp_to_level(thisLevel.level, thisLevel.area, thisLevel.act or 6) or warp_to_warpnode(thisLevel.level, thisLevel.area, thisLevel.act or 6, 0)) then
         djui_chat_message_create("This isn't a valid level.")
         setup_level_data(gGlobalSyncTable.gameLevel)
         return true
@@ -158,7 +159,7 @@ end
 
 -- Various movement tweaks
 --- @param m MarioState
-function before_phys_step(m)
+function before_phys_step(m, stepType)
     if m.action == ACT_SHOT_FROM_CANNON then return end
 
     local sMario = gPlayerSyncTable[m.playerIndex]
@@ -172,7 +173,7 @@ function before_phys_step(m)
 
     -- boost variant
     if (sMario.boostTime and sMario.boostTime ~= 0) then
-        if (m.action & ACT_FLAG_INTANGIBLE) == 0 and m.action ~= ACT_FLYING then
+        if (m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)) == 0 and m.action ~= ACT_FLYING then
             speed_cap = speed_cap + 15
 
             if ownedShine == 0 then speed_cap = speed_cap + 15 end -- boost is worse for shine player
@@ -190,7 +191,7 @@ function before_phys_step(m)
     end
     -- mushroom (similar to boost)
     if (sMario.mushroomTime and sMario.mushroomTime ~= 0) then
-        if (m.action & ACT_FLAG_INTANGIBLE) == 0 and m.action ~= ACT_FLYING then
+        if (m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)) == 0 and m.action ~= ACT_FLYING then
             speed_cap = speed_cap + 15
 
             if ownedShine == 0 then speed_cap = speed_cap + 15 end -- boost is worse for shine player
@@ -299,7 +300,7 @@ function mario_update(m)
     end
 
     -- cancel game if there aren't enough players
-    if m.playerIndex == 0 and gGlobalSyncTable.variant == 1 and gGlobalSyncTable.mhState == 2 and get_participant_count() < 3 then
+    if m.playerIndex == 0 and network_is_server() and gGlobalSyncTable.variant == 1 and gGlobalSyncTable.gameState == 2 and get_participant_count() < 3 then
         gGlobalSyncTable.variant = 0
         new_game()
         djui_popup_create_global("Not enough players for Double Shine!", 2)
@@ -318,7 +319,7 @@ function mario_update(m)
         m.hurtCounter = 0
     end
 
-    -- for underground lake
+    -- for underground lake and wiggler's cave
     if m.playerIndex == 0 and thisLevel then
         if thisLevel.room and m.currentRoom ~= 0 and m.currentRoom ~= thisLevel.room then
             print("Room mismatch", m.currentRoom, thisLevel.room)
@@ -440,7 +441,13 @@ function mario_update(m)
             end
             -- update team shine timer
             if get_player_owned_shine(0) ~= 0 and ownedShine ~= 0 then
-                if mySMario.shineTimer < sMario.shineTimer then
+                if math.abs(mySMario.shineTimer - sMario.shineTimer) > 1 then
+                    -- average the time
+                    local avg = (mySMario.shineTimer + sMario.shineTimer) // 2
+                    mySMario.shineTimer = avg
+                    sMario.shineTimer = avg
+                    shineFrameCounter = 0
+                elseif mySMario.shineTimer < sMario.shineTimer then
                     mySMario.shineTimer = sMario.shineTimer
                     shineFrameCounter = 0
                 end
@@ -492,13 +499,13 @@ function mario_update(m)
             m.flags = m.flags & ~MARIO_WING_CAP
             sMario.bulletTimer = 0
             local o = spawn_sync_object(id_bhvThrownBobomb,
-            E_MODEL_NONE,
-            m.pos.x, m.pos.y, m.pos.z,
-            function(o)
-                o.oForwardVel = 0
-                o.oVelY = -20
-                o.oObjectOwner = np.globalIndex
-            end)
+                E_MODEL_NONE,
+                m.pos.x, m.pos.y, m.pos.z,
+                function(o)
+                    o.oForwardVel = 0
+                    o.oVelY = -20
+                    o.oObjectOwner = np.globalIndex
+                end)
             if o then
                 o.oInteractStatus = INT_STATUS_INTERACTED
             end
@@ -507,12 +514,13 @@ function mario_update(m)
             if gGlobalSyncTable.variant ~= 2 and gGlobalSyncTable.variant ~= 7 then
                 m.flags = m.flags & ~MARIO_WING_CAP
                 set_mario_action(m, ACT_FREEFALL, 0)
+                set_camera_mode(m.area.camera, m.area.camera.defMode, 0)
             end
         end
     end
 
     -- items and shine passing
-    if m.playerIndex == 0 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
+    if m.playerIndex == 0 and gGlobalSyncTable.gameState == 2 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
         local throwDir = throw_direction()
         if sMario.item ~= 0 and throwDir ~= 4 then
             sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
@@ -536,7 +544,7 @@ function mario_update(m)
     if m.riddenObj and m.riddenObj.heldByPlayerIndex ~= m.playerIndex then
         m.riddenObj.heldByPlayerIndex = m.playerIndex
     end
-    if gGlobalSyncTable.variant == 3 and gGlobalSyncTable.gameState ~= 3 and special_pressed(m) and m.action & ACT_FLAG_INTANGIBLE == 0 and not m.heldObj then
+    if gGlobalSyncTable.variant == 3 and gGlobalSyncTable.gameState ~= 3 and special_pressed(m) and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and not m.heldObj then
         shell_rush_shell(m)
     end
     if m.playerIndex == 0 and m.action == ACT_RIDING_SHELL_GROUND and m.floor and m.floor.type == SURFACE_BURNING and thisLevel.badLava then
@@ -563,20 +571,10 @@ function mario_update(m)
     -- bombs variant
     if gGlobalSyncTable.variant == 6 and gGlobalSyncTable.gameState ~= 3 and sMario.specialCooldown == 0 and special_pressed(m) then
         if m.playerIndex == 0 then
-            spawn_sync_object(
-                id_bhvThrownBobomb,
-                E_MODEL_BLACK_BOBOMB,
-                m.pos.x, m.pos.y + 50, m.pos.z,
-                function(o)
-                    o.oForwardVel = m.forwardVel + 35
-                    o.oMoveAngleYaw = m.intendedYaw
-                    o.oFaceAngleYaw = o.oMoveAngleYaw
-                    o.oObjectOwner = np.globalIndex
-                end
-            )
+            local throwDir = throw_direction(true)
+            if throwDir == 5 then throwDir = 1 end
+            throw_bomb(m, throwDir)
         end
-
-        set_action_after_toss(m, m.intendedYaw)
         sMario.specialCooldown = 15
     end
 
@@ -646,7 +644,7 @@ function mario_update(m)
             start_random_level(type(gGlobalSyncTable.gameLevel) == "number")
         end
     elseif gGlobalSyncTable.gameState ~= 0 and didFirstJoinStuff then
-        local act = ((np.currCourseNum == COURSE_NONE) and 0) or 6
+        local act = ((np.currCourseNum == COURSE_NONE) and 0) or thisLevel.act or 6
         if m.playerIndex == 0 and (np.currLevelNum ~= thisLevel.level or np.currAreaIndex ~= thisLevel.area or np.currActNum ~= act) then -- stay in the right level
             if not warp_to_level(thisLevel.level, thisLevel.area, act) then
                 warp_to_warpnode(thisLevel.level, thisLevel.area, act, 0)
@@ -727,14 +725,13 @@ function is_hazard_floor(type)
         return true
     end
     return (type == SURFACE_INSTANT_QUICKSAND or type == SURFACE_INSTANT_MOVING_QUICKSAND or type == SURFACE_BURNING) and
-        (gGlobalSyncTable.variant ~= 3 or thisLevel.badLava)
+        ((gGlobalSyncTable.variant ~= 3 and not gGlobalSyncTable.godMode) or thisLevel.badLava)
 end
 
 -- used for bombs and items
-function set_action_after_toss(m, newYaw_, arg_)
+function set_action_after_toss(m, arg_)
     local arg = arg_ or 1
-    local newYaw = newYaw_ or m.faceAngle.y
-    if (m.action & ACT_FLAG_INVULNERABLE) ~= 0 or (m.action & ACT_FLAG_INTANGIBLE) ~= 0 or ((m.action & ACT_FLAG_SWIMMING) == 0 and (m.action & ACT_FLAG_SWIMMING_OR_FLYING) ~= 0) or (m.action & ACT_FLAG_RIDING_SHELL) ~= 0 then
+    if (m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)) ~= 0 or ((m.action & ACT_FLAG_SWIMMING) == 0 and (m.action & ACT_FLAG_SWIMMING_OR_FLYING) ~= 0) or (m.action & ACT_FLAG_RIDING_SHELL) ~= 0 then
         -- nothing
         play_character_sound(m, CHAR_SOUND_PUNCH_YAH)
     elseif (m.action == ACT_SHOT_FROM_CANNON) then
@@ -742,19 +739,16 @@ function set_action_after_toss(m, newYaw_, arg_)
         play_character_sound(m, CHAR_SOUND_PUNCH_YAH)
     elseif (m.action & ACT_FLAG_SWIMMING) ~= 0 then
         set_mario_action(m, ACT_WATER_PUNCH, 0)
-        m.faceAngle.y = newYaw
     elseif (m.action & ACT_FLAG_MOVING) ~= 0 or (m.action & ACT_FLAG_STATIONARY) ~= 0 then
         set_mario_action(m, ACT_ITEM_THROW_GROUND, arg)
-        m.faceAngle.y = newYaw
     elseif (m.action & ACT_FLAG_AIR) ~= 0 and m.action ~= ACT_GROUND_POUND then
         set_mario_action(m, ACT_ITEM_THROW_AIR, arg)
-        m.faceAngle.y = newYaw
     end
 end
 
 -- star effect
 function hue_shift_over_time(time, max)
-    local h = time % max * (360/max)
+    local h = time % max * (360 / max)
     local s = 0.8
     local v = 1
     -- Now it's time to convert this to RGB, which is very annoying
@@ -842,7 +836,7 @@ function start_random_level(list)
         local area = math.random(1, 7)
         local levelString = tostring(level) .. " " .. tostring(area) .. " " .. tostring(dry)
         setup_level_data(levelString)
-        if not (isRomHack and level_is_vanilla_level(thisLevel.level)) and (warp_to_level(thisLevel.level, thisLevel.area, 6) or warp_to_warpnode(thisLevel.level, thisLevel.area, 6, 0)) then
+        if not (isRomHack and level_is_vanilla_level(thisLevel.level)) and (warp_to_level(thisLevel.level, thisLevel.area, thisLevel.act or 6) or warp_to_warpnode(thisLevel.level, thisLevel.area, thisLevel.act or 6, 0)) then
             new_game_set_settings(levelString)
             break
         end
@@ -896,7 +890,7 @@ function allow_pvp_attack(attacker, victim, item)
     local sAttacker = gPlayerSyncTable[attacker.playerIndex]
     local sVictim = gPlayerSyncTable[victim.playerIndex]
     return (item or not (sAttacker.spectator or sVictim.spectator)) and
-    (sAttacker.team == 0 or sAttacker.team ~= sVictim.team) and ((not sVictim.star) or sAttacker.star)
+        (sAttacker.team == 0 or sAttacker.team ~= sVictim.team) and ((not sVictim.star) or sAttacker.star)
 end
 
 hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
@@ -993,7 +987,7 @@ function shell_rush_shell(m)
                 set_camera_mode(m.area.camera, CAMERA_MODE_FREE_ROAM, 1)
             end
         end
-    elseif m.action ~= ACT_BACKWARD_GROUND_KB and m.prevAction ~= ACT_BACKWARD_GROUND_KB then
+    elseif m.action ~= ACT_BACKWARD_GROUND_KB then
         spawnShell = 1
     end
 
@@ -1055,12 +1049,18 @@ end
 
 -- check direction item is thrown
 -- clockwise starting right and at 0 (no direction is 4, default direction is 5)
-function throw_direction()
+function throw_direction(dPadOnly)
     local m = gMarioStates[0]
-    if m.controller.buttonPressed & ITEM_BUTTON == 0 then
-        return 4
-    elseif _G.OmmEnabled and m.controller.buttonDown & R_TRIG == 0 then
-        return 4
+    if not dPadOnly then
+        if not _G.OmmEnabled then
+            if m.controller.buttonPressed & ITEM_BUTTON == 0 then
+                return 4
+            end
+        else
+            if m.controller.buttonDown & R_TRIG == 0 then
+                return 4
+            end
+        end
     end
 
     if m.controller.buttonDown & U_JPAD ~= 0 then
@@ -1105,15 +1105,15 @@ function on_sync_valid()
     sMario.specialCooldown = 0
     sMario.boostTime = 0
     already_spawn = {}
-    renderItemExists = {}
-    
+
     if gGlobalSyncTable.gameState ~= 0 then
+        renderItemExists = {}
         setup_level_data(gGlobalSyncTable.gameLevel)
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
     elseif isRomHack then
         setup_level_data(tostring(gLevelValues.entryLevel))
     else
-        setup_level_data(BASE_LEVELS - 5)
+        setup_level_data(LOBBY_LEVEL)
     end
 
     if not didFirstJoinStuff then
@@ -1143,8 +1143,8 @@ function on_sync_valid()
             _G.OmmApi.omm_force_setting("stars", 0)
             _G.OmmApi.omm_force_setting("bubble", 0)
         end
-        if gGlobalSyncTable.gameState ~= 0 and not warp_to_level(thisLevel.level, thisLevel.area, 6) then
-            warp_to_warpnode(thisLevel.level, thisLevel.area, 6, 0)
+        if gGlobalSyncTable.gameState ~= 0 and not warp_to_level(thisLevel.level, thisLevel.area, thisLevel.act or 6) then
+            warp_to_warpnode(thisLevel.level, thisLevel.area, thisLevel.act or 6, 0)
         end
         if gGlobalSyncTable.gameState == 2 then
             tipDispTimer = 150
@@ -1301,11 +1301,11 @@ function spawn_objects_at_start()
                     )
                 end
 
-                if #itemBoxLocations > 0 and gGlobalSyncTable.items ~= 0 then
-                    for i, pos in ipairs(itemBoxLocations) do
+                if thisLevel.itemBoxLocations and gGlobalSyncTable.items ~= 0 then
+                    for i, pos in ipairs(thisLevel.itemBoxLocations) do
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
                     end
-                elseif #spawn_potential > 0 then
+                elseif #spawn_potential > 0 and gGlobalSyncTable.items ~= 0 then
                     for i, pos in ipairs(spawn_potential) do
                         if i ~= 1 or programmedStart then
                             spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
@@ -1317,33 +1317,17 @@ function spawn_objects_at_start()
 
         if thisLevel.objLocations then
             for i, v in ipairs(thisLevel.objLocations) do
-                if v[1] == id_bhvItemBox then
-                    if network_is_server() and gGlobalSyncTable.items ~= 0 and loadingLevel then
-                        spawn_sync_object(
-                            v[1],
-                            v[2],
-                            v[3], v[4], v[5],
-                            function(o)
-                                o.oBehParams = v[6] or 0
-                                o.oBehParams2ndByte = v[7] or 0
-                                o.oFaceAnglePitch = v[8] or 0
-                                o.oFaceAngleYaw = v[9] or 0
-                            end
-                        )
+                spawn_non_sync_object(
+                    v[1],
+                    v[2],
+                    v[3], v[4], v[5],
+                    function(o)
+                        o.oBehParams = v[6] or 0
+                        o.oBehParams2ndByte = v[7] or 0
+                        o.oFaceAnglePitch = v[8] or 0
+                        o.oFaceAngleYaw = v[9] or 0
                     end
-                else
-                    spawn_non_sync_object(
-                        v[1],
-                        v[2],
-                        v[3], v[4], v[5],
-                        function(o)
-                            o.oBehParams = v[6] or 0
-                            o.oBehParams2ndByte = v[7] or 0
-                            o.oFaceAnglePitch = v[8] or 0
-                            o.oFaceAngleYaw = v[9] or 0
-                        end
-                    )
-                end
+                )
             end
         end
     end
@@ -1386,10 +1370,8 @@ function on_packet_victory(data, self)
 end
 
 spawn_potential = {}
-itemBoxLocations = {}
 function on_packet_new_game(data, self)
     spawn_potential = {}
-    itemBoxLocations = {}
     if _G.OmmEnabled then
         gLevelValues.disableActs = false
         _G.OmmApi.omm_disable_feature("trueNonStop", true)
@@ -1408,8 +1390,8 @@ function on_packet_new_game(data, self)
     if not self then
         setup_level_data(gGlobalSyncTable.gameLevel)
     end
-    if not warp_to_level(thisLevel.level, thisLevel.area, 6) then
-        warp_to_warpnode(thisLevel.level, thisLevel.area, 6, 0)
+    if not warp_to_level(thisLevel.level, thisLevel.area, thisLevel.act or 6) then
+        warp_to_warpnode(thisLevel.level, thisLevel.area, thisLevel.act or 6, 0)
     end
 
     for i = 0, MAX_PLAYERS - 1 do
@@ -1460,6 +1442,8 @@ function on_packet_grab_shine(data, self)
             string.format("%s\\#ffffff\\ stole %s's \\#ffff40\\Shine\\#ffffff\\!", aPlayerColor .. aNP.name,
                 playerColor .. np.name), 1)
     end
+
+    gMarioStates[np.localIndex].invincTimer = math.max(gMarioStates[np.localIndex].invincTimer, 60) -- is halved in code
 
     audio_sample_play(SOUND_SHINE_GRAB, gMarioStates[0].marioObj.header.gfx.cameraToObject, 1)
 end

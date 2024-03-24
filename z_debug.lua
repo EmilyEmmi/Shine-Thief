@@ -3,6 +3,7 @@
 DEBUG_MODE = false
 local start_spots = {}
 local obj_spots = {}
+local item_spots = {}
 local shine_spot = {0, 0, 0}
 function add_spot(msg)
     if msg == "reset" then
@@ -188,9 +189,78 @@ function add_obj_spot(msg)
     return true
 end
 
+function add_item_spot(msg)
+    if not msg or msg == "" then return false end
+    local args = split(msg," ")
+
+    if not item_spots then item_spots = {} end
+
+    if args[1] == "reset" then
+        item_spots = {}
+        djui_chat_message_create("removed all item boxes")
+
+        if DEBUG_MODE then
+            local o = obj_get_first_with_behavior_id(id_bhvItemBox)
+            while o do
+                obj_mark_for_deletion(o)
+                o = obj_get_next_with_same_behavior_id(o)
+            end
+        end
+
+        return true
+    elseif args[1] == "remove" and #item_spots > 0 then
+        table.remove(item_spots, #item_spots)
+        djui_chat_message_create("removed last item box")
+
+        if DEBUG_MODE then
+            local o = obj_get_first_with_behavior_id(id_bhvItemBox)
+            local prevObj = o
+            while o do
+                prevObj = o
+                o = obj_get_next_with_same_behavior_id(o)
+            end
+            obj_mark_for_deletion(prevObj)
+        end
+
+        return true
+    end
+
+    local m = gMarioStates[0]
+    local x = math.floor(m.pos.x)
+    local y = math.floor(m.pos.y)
+    local z = math.floor(m.pos.z)
+
+    if args[2] == "floor" then
+        y = math.floor(m.floorHeight)
+    elseif args[2] == "shine" and shine_spot[2] then
+        x = shine_spot[1]
+        y = shine_spot[2] - 186
+        z = shine_spot[3]
+    elseif tonumber(args[2]) then
+        y = y + tonumber(args[2])
+    end
+    if args[2] ~= "exact" then
+        y = y + 160
+    end
+
+    table.insert(item_spots, {x, y, z})
+    djui_chat_message_create("added an item box (there are "..tostring(#item_spots).." item boxes)")
+
+    if DEBUG_MODE then
+        spawn_sync_object(
+            id_bhvItemBox,
+            E_MODEL_ITEM_BOX,
+            x,y,z,
+            nil
+        )
+    end
+
+    return true
+end
+
 function print_data(msg)
     local np = gNetworkPlayers[0]
-    local text = "[NUM] = {\n"
+    local text = "{\n"
     text = text .. "\tlevel = " .. tostring(np.currLevelNum) .. ",\n"
     text = text .. "\tcourse = " .. tostring(np.currCourseNum) .. ",\n"
     text = text .. "\tarea = " .. tostring(np.currAreaIndex) .. ",\n\n"
@@ -210,6 +280,13 @@ function print_data(msg)
         end
         text = text .. "\t},"
     end
+    if item_spots and #item_spots > 0 then
+        text = text .. "\n\n\titemBoxLocations = {\n"
+        for i,v in ipairs(item_spots) do
+            text = text .. string.format("\t\t{%d, %d, %d},\n",v[1] or 0, v[2] or 0, v[3] or 0)
+        end
+        text = text .. "\t},"
+    end
     text = text .. "\n},"
     print(text)
     return true
@@ -226,8 +303,17 @@ function debug_mode(msg)
 end
 
 function round_pos(msg)
-    local num = tonumber(msg) or 10
     local m = gMarioStates[0]
+    if msg == "box" then
+        local box = obj_get_nearest_object_with_behavior_id(m.marioObj, id_bhvItemBox)
+        if box then
+            m.pos.x = box.oPosX
+            m.pos.y = box.oPosY - 160
+            m.pos.z = box.oPosZ
+        end
+        return true
+    end
+    local num = tonumber(msg) or 10
     m.pos.x = math.floor((m.pos.x/num)+0.5)*num
     m.pos.y = math.floor((m.pos.y/num)+0.5)*num
     m.pos.z = math.floor((m.pos.z/num)+0.5)*num
@@ -317,6 +403,7 @@ if network_is_server() and cheatsOn then
     hook_chat_command("round","[NUM] - round mario's pos",round_pos)
     hook_chat_command("angle","[NUM] - round mario's angle",round_angle)
     hook_chat_command("item","[NUM] - give yourself this item",give_item)
+    hook_chat_command("itembox","[ADD|REMOVE|RESET,YOFFSET] - place or remove item boxes",add_item_spot)
     djui_popup_create("Cheats Detected - Debug mode has been unlocked!",1)
 end
 
@@ -334,6 +421,7 @@ end
 
 function reload_obj_data(levelData)
     obj_spots = deep_copy(levelData.objLocations or {})
+    item_spots = deep_copy(levelData.itemBoxLocations or {})
     start_spots = {}
     if levelData.startLocations then
         for i,v in pairs(levelData.startLocations) do

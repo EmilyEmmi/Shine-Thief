@@ -15,11 +15,48 @@ levelData = {
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4470, 0,    6730, 0, 1, 0x0, 0x6000 },
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3732,  3072, 269,  1, 0, 0,   2615 },
         },
+
+        itemBoxLocations = {
+            { -80,   160,  5660 },
+            { 1600,  1140, 4440 },
+            { 4934,  1484, 861 },
+            { 5540,  3232, 1200 },
+            { 3000,  3232, 1250 },
+            { 4360,  3232, 50 },
+            { 4350,  3232, 2380 },
+            { 3000,  4453, -4000 },
+            { 2000,  4453, -5000 },
+            { 3000,  4453, -5000 },
+            { 2000,  4453, -4000 },
+            { -5500, 928,  2400 },
+            { -6500, 928,  2400 },
+            { -6000, 928,  3024 },
+            { -6000, 928,  1880 },
+            { -6710, 1184, -2170 },
+            { -2987, 1367, -723 },
+            { -5294, 1271, -5723 },
+            { -2601, 160,  -4167 },
+            { 1135,  2034, -7161 },
+            { 532,   2843, -5455 },
+            { 1628,  3995, -5582 },
+            { 7151,  2189, -6707 },
+            { -1970, 160,  1360 },
+            { -2675, 160,  612 },
+            { 7042,  1009, 6469 },
+            { 1950,  928,  6610 },
+            { 519,   755,  -909 },
+            { -1010, 877,  -4073 },
+            { -549,  993,  -4314 },
+            { -1470, 1007, -3832 },
+            { 4921,  3241, -2857 },
+            { 3567,  3156, -2082 },
+        },
     },
     {
         level = LEVEL_WF,
         course = COURSE_WF,
         area = 1,
+        act = 1,
         tex = "painting_00",
         noWater = true, -- people keep going oob
         levelSize = 5600,
@@ -43,7 +80,32 @@ levelData = {
             [15] = { 4580, 1256, 2916 },
         },
 
-        shineStart = { 307, 5520, 7 },
+        itemBoxLocations = {
+            { 3770,  1540, 650 },
+            { 2750,  1235, -3400 },
+            { 1636,  2720, -80 },
+            { 1900,  2720, 2570 },
+            { -256,  2720, 2311 },
+            { -2722, 544,  -1101 },
+            { -2704, 544,  -477 },
+            { -2683, 544,  250 },
+            { -2500, 1491, -750 },
+            { -2501, 1952, 31 },
+            { 1920,  1082, 2518 },
+            { 1897,  1082, 3454 },
+            { 2323,  1082, 3049 },
+            { 1491,  1082, 3028 },
+            { 2700,  3744, -900 },
+            { 1746,  3744, -3120 },
+            { 2320,  3744, -2305 },
+            { 3193,  3488, -1809 },
+            { -1760, 1184, 3620 },
+            { -932,  2720, -1461 },
+            { -1351, 2720, -1924 },
+            { -1701, 2720, -2309 },
+        },
+
+        shineStart = { 280, 3744, 270 },
     },
     {
         level = LEVEL_JRB,
@@ -58,6 +120,16 @@ levelData = {
             [0] = { 39, -191, -1119 },
         },
         shineStart = { 43, 1418, 2958 },
+
+        itemBoxLocations = {
+            { 484,  -42,  701 },
+            { -246, 854,  1965 },
+            { 809,  1102, 2642 },
+            { 863,  590,  1784 },
+            { -263, 86,   778 },
+            { 253,  482,  1653 },
+            { 548,  -191, -2655 },
+        },
     },
     {
         level = LEVEL_CCM,
@@ -74,6 +146,41 @@ levelData = {
         objLocations = {
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1861, 2826,  -389, 0, 1, 0, -25100 },
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3317,  -4694, -147, 1, 0, 0, -3600 },
+        },
+    },
+    {
+        level = LEVEL_CCM,
+        course = COURSE_CCM,
+        area = 2,
+        name = "Snow Slide",
+        tex = "painting_06",
+
+        startLocations = {
+            [0] = { -5836, 7360, -6143 },
+        },
+        shineStart = { -4910, 6816, -6160 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5836, 7872,  -6143, 1, 0, -0x8000, 0x4000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -6540, -5836, -7195, 0, 1, 0x0 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -7880, -5836, -6970, 2, 1 }, -- failsafe
+        },
+
+        itemBoxLocations = {
+            { -4895, 1525,  550 },
+            { -5580, -4650, -6620 },
+            { -6420, -3929, -5910 },
+            { -6470, -5520, -4820 },
+            { -940,  6131,  -6743 },
+            { -940,  6131,  -6443 },
+            { -940,  6131,  -6143 },
+            { -940,  6131,  -5843 },
+            { -940,  6131,  -5543 },
+            { 4498,  500,   -6048 },
+            { 4502,  357,   -5632 },
+            { 3495,  -3171, 6627 },
+            { 3557,  -3171, 6375 },
+            { 3626,  -3171, 6097 },
         },
     },
     {
@@ -103,6 +210,13 @@ levelData = {
             --{id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM, -5400, -6327, 3540, 140, 0, 0x0, 0xC000},
             { id_bhvArenaSpring,             E_MODEL_SPRING_BOTTOM,         -2225, -6327, 2225, 140, 0, 0x0,    0xE000 },
         },
+
+        itemBoxLocations = {
+            { -3540, -6167, 5400 },
+            { -1680, -6167, 3540 },
+            { -3540, -6167, 1680 },
+            { -5400, -6167, 3540 },
+        },
     },
     {
         level = LEVEL_LLL,
@@ -117,6 +231,33 @@ levelData = {
 
         objLocations = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, 505, 0, 0, 0, 0, 0x4000 },
+        },
+    },
+    {
+        level = LEVEL_LLL,
+        course = COURSE_LLL,
+        area = 2,
+        tex = "painting_02",
+        name = "Inside Of The Volcano",
+
+        startLocations = {
+            [0] = { -955, 1102, -1029 },
+        },
+        shineStart = { 2523, 3751, -901 },
+
+        itemBoxLocations = {
+            { -1626, 258,  629 },
+            { 831,   242,  -1538 },
+            { 2112,  332,  -1719 },
+            { 345,   1363, 2765 },
+            { 345,   1363, 2505 },
+            { -2235, 2024, 901 },
+            { -1627, 1880, 750 },
+            { -2352, 2141, 360 },
+            { 920,   3389, -2502 },
+            { 653,   3188, 1097 },
+            { 1800,  3392, 1450 },
+            { 625,   2310, 312 },
         },
     },
     {
@@ -163,6 +304,35 @@ levelData = {
     {
         level = LEVEL_WDW,
         course = COURSE_WDW,
+        area = 1,
+        noWater = true,
+        tex = "painting_07",
+
+        startLocations = {
+            [0] = { 3387, 1128, 390 },
+        },
+        shineStart = { 718, 4192, 94 },
+
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -2980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3280 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3580 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3880 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3880 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3880 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        2869,  0,    -718,  0, 1, 0, -40 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3623, 3584, -3623, 1, 0, 0, 7527 },
+        },
+    },
+    {
+        level = LEVEL_WDW,
+        course = COURSE_WDW,
         area = 2,
         noWater = true,
         tex = "painting_09",
@@ -192,35 +362,6 @@ levelData = {
         objLocations = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3525, -700, -1590, 0, 0, 0x4000, 0 },
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3010, -700, -1590, 0, 0, 0x4000, 0 },
-        },
-    },
-    {
-        level = LEVEL_WDW,
-        course = COURSE_WDW,
-        area = 1,
-        noWater = true,
-        tex = "painting_07",
-
-        startLocations = {
-            [0] = { 3387, 1128, 390 },
-        },
-        shineStart = { 718, 4192, 94 },
-
-        objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -2980 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3280 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3580 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3790,  3050, -3880 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4220,  3050, -3880 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4650,  3050, -3880 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        2869,  0,    -718,  0, 1, 0, -40 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3623, 3584, -3623, 1, 0, 0, 7527 },
         },
     },
     {
@@ -271,6 +412,41 @@ levelData = {
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -3040, 512,   -3970, 0, 1, 0x0, 0x0 },
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5750, -3580, 2400,  1, 0, 0x0, 0x0 },
         },
+
+        itemBoxLocations = {
+            { 2600,  3386,  -2400 },
+            { -4414, 365,   -2157 },
+            { -6562, -2809, 6132 },
+            { -6606, -2809, 7171 },
+            { -5857, -2809, 6683 },
+            { -7207, -2809, 6625 },
+            { -5913, -3423, -2252 },
+            { -6000, -3423, -1320 },
+            { -5434, -3423, -1790 },
+            { -6366, -3423, -1877 },
+            { -6161, -1887, -3815 },
+            { -6196, -1887, -4854 },
+            { -6234, -1887, -5998 },
+            { -69,   -1477, -5112 },
+            { -98,   -1477, -4811 },
+            { 4139,  -1720, -5454 },
+            { 6863,  -1375, -5676 },
+            { 6022,  -1887, -633 },
+            { 7098,  -2399, 1281 },
+            { 3980,  -351,  2706 },
+            { 4730,  -1375, 3492 },
+            { -461,  -3423, 6080 },
+            { -596,  -3423, 7229 },
+            { -555,  -3423, 7747 },
+            { 5896,  -2399, 4942 },
+            { 6415,  -2399, 4900 },
+            { 6829,  -2399, 4866 },
+            { 115,   2362,  400 },
+            { -3176, 672,   371 },
+            { -2910, -351,  3847 },
+            { -1974, -351,  3847 },
+            { -4054, -351,  3847 },
+        },
     },
     {
         level = LEVEL_THI,
@@ -279,6 +455,7 @@ levelData = {
         tex = "painting_20",
         name = "Wiggler's Cave",
         levelSize = 2000,
+        maxHeight = 1950,
 
         startLocations = {
             [0] = { 727, 1024, 1230 },
@@ -365,6 +542,15 @@ levelData = {
             [15] = { 2277, 796, -500 },
         },
         shineStart = { 0, 110, -1332 },
+
+        itemBoxLocations = {
+            { 2277,  -44, -1800 },
+            { 0,     110, -2100 },
+            { -2397, -44, -1290 },
+            { -3300, 160, -800 },
+            { 3300,  160, -800 },
+            { 0,     160, -488 },
+        },
     },
     {
         level = LEVEL_PSS,
@@ -381,6 +567,59 @@ levelData = {
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 5632,  7666,  -5631, 0, 1, -0x8000, -0x4000 },
             { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5550, -4587, 5710,  1, 0, 0x0,     -0x4000 },
         },
+        itemBoxLocations = {
+            { 3200,  6304,  -5631 },
+            { 3200,  6304,  -5331 },
+            { 3200,  6304,  -5931 },
+            { -1400, 2938,  2177 },
+            { -1400, 2938,  1877 },
+            { -1400, 2938,  2477 },
+            { 1861,  -1785, -2890 },
+            { 2161,  -1785, -2890 },
+            { 1561,  -1785, -2890 },
+            { -6360, -4394, 3700 },
+            { -6060, -4394, 3700 },
+            { -6660, -4394, 3700 },
+            { -7180, -4427, 5670 },
+        },
+    },
+    {
+        level = LEVEL_SA,
+        course = COURSE_SA,
+        area = 1,
+        tex = "painting_19",
+        name = "Drained Aquarium",
+        levelSize = 3021,
+        romhack_cam = true,
+        noWater = true,
+
+        startLocations = {
+            [0] = { 0, -3607, 2500 },
+            [1] = { 957, -3607, 2310 },
+            [2] = { 1768, -3607, 1768 },
+            [3] = { 2310, -3607, 957 },
+            [4] = { 2500, -3607, 0 },
+            [5] = { 2310, -3607, -957 },
+            [6] = { 1768, -3607, -1768 },
+            [7] = { 957, -3607, -2310 },
+            [8] = { 0, -3607, -2500 },
+            [9] = { -957, -3607, -2310 },
+            [10] = { -1768, -3607, -1768 },
+            [11] = { -2310, -3607, -957 },
+            [12] = { -2500, -3607, 0 },
+            [13] = { -2310, -3607, 957 },
+            [14] = { -1768, -3607, 1768 },
+            [15] = { -957, -3607, 2310 },
+        },
+
+        itemBoxLocations = {
+            { 2500,  -4447, 2500 },
+            { -2500, -4447, 2500 },
+            { 2500,  -4447, -2500 },
+            { -2500, -4447, -2500 },
+        },
+
+        shineStart = { 0, -4242, 0 },
     },
     {
         level = LEVEL_BOWSER_1,
@@ -408,6 +647,13 @@ levelData = {
             [13] = { -2310, 800, 957 },
             [14] = { -1768, 800, 1768 },
             [15] = { -957, 800, 2310 },
+        },
+
+        itemBoxLocations = {
+            { 0,     467, 1000 },
+            { 1000,  467, 0 },
+            { 0,     467, -1000 },
+            { -1000, 467, 0 },
         },
 
         shineStart = { 0, 467, 0 },
@@ -442,6 +688,13 @@ levelData = {
             [15] = { -957, 2229, 2310 },
         },
 
+        itemBoxLocations = {
+            { 0,     1389, 1000 },
+            { 1000,  1389, 0 },
+            { 0,     1389, -1000 },
+            { -1000, 1389, 0 },
+        },
+
         shineStart = { 0, 1389, 0 },
     },
     {
@@ -472,13 +725,22 @@ levelData = {
             [15] = { -957, 800, 2310 },
         },
 
+        itemBoxLocations = {
+            { 0,     467, 1000 },
+            { 1000,  467, 0 },
+            { 0,     467, -1000 },
+            { -1000, 467, 0 },
+        },
+
         shineStart = { 0, 467, 0 },
     },
 }
 
 thisLevel = levelData[1]
 BASE_LEVELS = #levelData
+LOBBY_LEVEL = BASE_LEVELS - 6
 arenaSpawnLocations = {}
+arenaItemBoxLocations = {}
 function setup_level_data(level)
     if level == 0 then return end
 
@@ -495,6 +757,10 @@ function setup_level_data(level)
         thisLevel.startLocations = arenaSpawnLocations
     end
     arenaSpawnLocations = {}
+    if arenaItemBoxLocations and #arenaItemBoxLocations > 0 then
+        thisLevel.itemBoxLocations = arenaItemBoxLocations
+    end
+    arenaItemBoxLocations = {}
 
     if DEBUG_MODE then
         reload_obj_data(thisLevel)
@@ -519,8 +785,10 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             return
         end
         pos = { thisLevel.startLocations[0][1], thisLevel.startLocations[0][2], thisLevel.startLocations[0][3] }
-        pos[1] = pos[1] + ((globalIndex) % 4) * 100 - 150
-        pos[3] = pos[3] + ((globalIndex) // 4) * 100 - 150
+        if not DEBUG_MODE then
+            pos[1] = pos[1] + ((globalIndex) % 4) * 100 - 150
+            pos[3] = pos[3] + ((globalIndex) // 4) * 100 - 150
+        end
     end
     m.pos.x = pos[1]
     if spawning then

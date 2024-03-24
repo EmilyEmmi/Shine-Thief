@@ -2,9 +2,9 @@
 
 E_MODEL_BANANA = smlua_model_util_get_id("banana_geo")
 E_MODEL_RED_SHELL = smlua_model_util_get_id("red_shell_geo")
-E_MODEL_BOOMERANG = E_MODEL_TRANSPARENT_STAR -- TODO: actually make the models
-E_MODEL_CAPE = E_MODEL_BOOKEND
-E_MODEL_POW = E_MODEL_EXCLAMATION_BOX
+E_MODEL_BOOMERANG = smlua_model_util_get_id("boomerang_geo")
+E_MODEL_CAPE = E_MODEL_BOOKEND -- TODO: actually make the models
+E_MODEL_POW = smlua_model_util_get_id("pow_block_geo")
 
 local ITEM_BANANA = 1
 local ITEM_MUSHROOM = 2
@@ -21,9 +21,12 @@ local ITEM_POW = 12
 local ITEM_TRIPLE_BANANA = 13
 local ITEM_DOUBLE_BANANA = 14
 local ITEM_FIRE_FLOWER = 15
+local ITEM_BOMB = 16
+local ITEM_TRIPLE_BOMB = 17
+local ITEM_DOUBLE_BOMB = 18
 item_data = {
     [ITEM_BANANA] = {
-        weight = 100,
+        weight = 90,
         first = true, -- can get in first (all other items are off)
         model = E_MODEL_BANANA,
         hand = true,  -- show in hand
@@ -45,7 +48,7 @@ item_data = {
         bill = true,
     },
     [ITEM_TRIPLE_MUSHROOM] = {
-        weight = 20,
+        weight = 10,
         frantic = true, -- frantic item (more likely to appear for last and when Frantic is on)
         model = E_MODEL_1UP,
         count = 3,
@@ -66,7 +69,7 @@ item_data = {
         bill = true,
     },
     [ITEM_SHELL] = {
-        weight = 60,
+        weight = 70,
         model = E_MODEL_RED_SHELL,
         first = true,
         func = function(dir)
@@ -75,7 +78,7 @@ item_data = {
         end,
     },
     [ITEM_TRIPLE_SHELL] = {
-        weight = 10,
+        weight = 15,
         frantic = true,
         model = E_MODEL_RED_SHELL,
         count = 3,
@@ -115,21 +118,28 @@ item_data = {
     },
     [ITEM_BOOMERANG] = {
         weight = 40,
+        scale = 0.3,
+        yawOffset = -0x4000,
+        rollOffset = 0x4000,
+        pitchOffset = 0x1000,
+        yOffset = 20,
+        forwardOffset = 13,
+        sideOffset = -20,
         hand = true,
         model = E_MODEL_BOOMERANG,
         func = function(dir, uses)
             local m = gMarioStates[0]
             local np = gNetworkPlayers[0]
-            set_action_after_toss(m, nil, dir)
+            set_action_after_toss(m, dir)
             spawn_sync_object(
                 id_bhvBoomerang,
                 E_MODEL_BOOMERANG,
                 m.pos.x, m.pos.y + 50, m.pos.z,
                 function(o)
                     if dir == 1 then
-                        o.oForwardVel = m.forwardVel + 50
+                        o.oForwardVel = m.forwardVel + 70
                     else
-                        o.oForwardVel = 50
+                        o.oForwardVel = 70
                     end
                     o.oVelY = 0
                     o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
@@ -143,10 +153,10 @@ item_data = {
         end,
     },
     [ITEM_STAR] = {
-        weight = 10,
+        weight = 5,
         frantic = true,
         model = E_MODEL_STAR,
-        yOffset = 40,
+        yOffset = 30,
         scale = 0.7,
         func = function(dir)
             local m = gMarioStates[0]
@@ -155,11 +165,14 @@ item_data = {
             play_sound(SOUND_GENERAL_SHORT_STAR, m.marioObj.header.gfx.cameraToObject)
             play_cap_music(SEQ_EVENT_POWERUP)
             play_character_sound(m, CHAR_SOUND_HERE_WE_GO)
+            if m.action == ACT_LAVA_BOOST then
+                set_mario_action(m, ACT_FREEFALL, 0)
+            end
             return 0
         end
     },
     [ITEM_BULLET] = {
-        weight = 40, -- not as good as in mario kart
+        weight = 20, -- not as good as in mario kart
         frantic = true,
         model = E_MODEL_BULLET_BILL,
         yOffset = 40,
@@ -199,7 +212,7 @@ item_data = {
         end,
     },
     [ITEM_TRIPLE_BANANA] = {
-        weight = 20,
+        weight = 25,
         first = true,
         count = 3,
         model = E_MODEL_BANANA,
@@ -220,7 +233,7 @@ item_data = {
         end,
     },
     [ITEM_FIRE_FLOWER] = {
-        weight = 20,
+        weight = 10,
         frantic = true,
         hand = true,
         bill = true,
@@ -230,7 +243,7 @@ item_data = {
         func = function(dir, uses)
             local m = gMarioStates[0]
             local np = gNetworkPlayers[0]
-            set_action_after_toss(m, nil, dir)
+            set_action_after_toss(m, dir)
             spawn_sync_object(
                 id_bhvFireball,
                 E_MODEL_RED_FLAME,
@@ -255,6 +268,47 @@ item_data = {
             return 0
         end
     },
+    [ITEM_BOMB] = {
+        weight = 20,
+        frantic = true,
+        hand = true,
+        scale = 0.4,
+        yOffset = -20,
+        sideOffset = 10,
+        model = E_MODEL_BLACK_BOBOMB,
+        animation = gObjectAnimations.bobomb_seg8_anims_0802396C,
+        func = function(dir)
+            local m = gMarioStates[0]
+            throw_bomb(m, dir)
+            return 0
+        end
+    },
+    [ITEM_TRIPLE_BOMB] = {
+        weight = 10,
+        frantic = true,
+        count = 3,
+        scale = 0.75,
+        model = E_MODEL_BLACK_BOBOMB,
+        animation = gObjectAnimations.bobomb_seg8_anims_0802396C,
+        func = function(dir)
+            local m = gMarioStates[0]
+            throw_bomb(m, dir)
+            return ITEM_DOUBLE_BOMB
+        end
+    },
+    [ITEM_DOUBLE_BOMB] = {
+        weight = 0,
+        frantic = true,
+        count = 2,
+        scale = 0.75,
+        model = E_MODEL_BLACK_BOBOMB,
+        animation = gObjectAnimations.bobomb_seg8_anims_0802396C,
+        func = function(dir)
+            local m = gMarioStates[0]
+            throw_bomb(m, dir)
+            return ITEM_BOMB
+        end
+    },
 }
 
 -- get a random item (does weight and stuff)
@@ -269,9 +323,11 @@ function random_item()
         local valid = true
         if weight == 0 then
             valid = false
-        elseif get_player_owned_shine(0) ~= 0 and (sMario.shineTimer >= gGlobalSyncTable.winTime - 5) and not data.first then
-            valid = false                                                                                       -- only certain items when close to winning and owning shine
-        elseif sMario.shineTimer < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 then -- after 30 seconds, players not doing well get better items
+        elseif (item == ITEM_BOMB or item == ITEM_TRIPLE_BOMB) and gGlobalSyncTable.variant == 6 then
+            valid = false
+        elseif get_player_owned_shine(0) ~= 0 and (sMario.shineTimer >= gGlobalSyncTable.winTime - 15) and not data.first then -- only certain items when close to winning and owning shine
+            valid = false
+        elseif sMario.shineTimer < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 then                -- after 30 seconds, players not doing well get better items
             if data.frantic then
                 weight = weight * 2
             else
@@ -295,7 +351,7 @@ function random_item()
         end
     end
 
-    -- diplay probabilities for testing
+    -- display probabilities for testing
     if DEBUG_MODE then
         local prevWeight = 0
         for i, weight in ipairs(weightRange) do
@@ -337,7 +393,7 @@ end
 function banana_general(dir)
     local m = gMarioStates[0]
     local np = gNetworkPlayers[0]
-    set_action_after_toss(m, nil, dir)
+    set_action_after_toss(m, dir)
     spawn_sync_object(
         id_bhvBanana,
         E_MODEL_BANANA,
@@ -352,7 +408,7 @@ function banana_general(dir)
                 o.oVelY = 50
                 o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
             else
-                o.oForwardVel = m.forwardVel - 10
+                o.oForwardVel = -10
                 o.oVelY = 0
                 o.oMoveAngleYaw = m.faceAngle.y
             end
@@ -366,7 +422,7 @@ end
 function shell_general(dir)
     local m = gMarioStates[0]
     local np = gNetworkPlayers[0]
-    set_action_after_toss(m, nil, dir)
+    set_action_after_toss(m, dir)
     spawn_sync_object(
         id_bhvRedShell,
         E_MODEL_RED_SHELL,
@@ -378,6 +434,25 @@ function shell_general(dir)
             o.oObjectOwner = np.globalIndex
         end
     )
+end
+
+function throw_bomb(m, dir)
+    spawn_sync_object(
+        id_bhvThrownBobomb,
+        E_MODEL_BLACK_BOBOMB,
+        m.pos.x, m.pos.y + 50, m.pos.z,
+        function(o)
+            if dir == 1 then
+                o.oForwardVel = m.forwardVel + 35
+            else
+                o.oForwardVel = 35
+            end
+            o.oMoveAngleYaw = m.faceAngle.y + (dir - 1) * 0x4000
+            o.oFaceAngleYaw = o.oMoveAngleYaw
+            o.oObjectOwner = gNetworkPlayers[m.playerIndex].globalIndex
+        end
+    )
+    set_action_after_toss(m, dir)
 end
 
 -- banana (based on bomb)
@@ -430,6 +505,7 @@ function boomerang_init(o)
     o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
     o.oFaceAnglePitch = 0x4000
     o.oFaceAngleRoll = 0
+    o.oFaceAngleYaw = 0
     o.oAction = 0
     o.oGravity = 0
     o.oBuoyancy = 1.5
@@ -444,6 +520,7 @@ function boomerang_init(o)
     hitbox.downOffset = 0
     hitbox.interactType = INTERACT_DAMAGE
     obj_set_hitbox(o, hitbox)
+    cur_obj_scale(0.75)
 
     cur_obj_init_animation(1)
     network_init_object(o, false, {
@@ -474,7 +551,10 @@ function boomerang_loop(o)
         end
     end
 
-    o.oFaceAngleYaw = o.oFaceAngleYaw + 0x2000
+    o.oFaceAngleYaw = limit_angle(o.oFaceAngleYaw + 0x2000)
+    if o.oFaceAngleYaw == 0 then
+        cur_obj_play_sound_1(SOUND_ACTION_SPIN)
+    end
     if o.oAction == 0 then
         if o.oAnimState <= 2 then
             o.oForwardVel = o.oForwardVel - 2
@@ -554,16 +634,31 @@ function red_shell_loop(o)
     end
 
     local maxDist = 2000
+    local bestYaw = 0
     local targetIndex = network_local_index_from_global(o.oAnimState - 1) or 255
     local team = gPlayerSyncTable[index].team or 0
-    for i = 0, MAX_PLAYERS - 1 do -- target closest opponent
-        local sMario = gPlayerSyncTable[i]
-        local m = gMarioStates[i]
-        if i ~= index and is_player_active(m) ~= 0 and m.invincTimer == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator then
-            local dist = dist_between_objects(o, m.marioObj)
-            if dist < maxDist then
-                maxDist = dist
-                targetIndex = i
+    if targetIndex ~= 255 then
+        local sMario = gPlayerSyncTable[targetIndex]
+        local m = gMarioStates[targetIndex]
+        if not (is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator) then
+            targetIndex = 255
+        else
+            bestYaw = obj_angle_to_object(o, m.marioObj)
+        end
+    end
+
+    if targetIndex == 255 then
+        for i = 0, MAX_PLAYERS - 1 do -- target closest opponent
+            local sMario = gPlayerSyncTable[i]
+            local m = gMarioStates[i]
+            if i ~= index and is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator then
+                local dist = dist_between_objects(o, m.marioObj)
+                local yaw = obj_angle_to_object(o, m.marioObj)
+                if dist < maxDist and abs_angle_diff(yaw, o.oMoveAngleYaw) <= 0x4000 then -- only target in front of
+                    maxDist = dist
+                    bestYaw = yaw
+                    targetIndex = i
+                end
             end
         end
     end
@@ -577,17 +672,16 @@ function red_shell_loop(o)
 
         local m = gMarioStates[targetIndex]
         local vel = math.max(m.forwardVel + 2, 35)
-        if o.oForwardVel < vel then
-            o.oForwardVel = approach_s32(o.oForwardVel, vel, 2, 2)
-        end
+        o.oForwardVel = approach_s32(o.oForwardVel, vel, 2, 2)
 
-        local yaw = obj_angle_to_object(o, m.marioObj)
-        o.oMoveAngleYaw = approach_s16_symmetric(o.oMoveAngleYaw, yaw, 0x1000)
+        o.oMoveAngleYaw = approach_s16_symmetric(o.oMoveAngleYaw, bestYaw, 0x1000)
         if m.pos.y - o.oPosY > 100 or m.pos.y - o.oPosY < -100 then
             o.oVelY = (m.pos.y - o.oPosY) // 10
         elseif o.oForwardVel >= vel then
             o.oVelY = 0
         end
+    else
+        o.oAnimState = 0
     end
 
     if o.oTimer > 300 or (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then

@@ -35,7 +35,7 @@ local tip_general = {
     "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
     "Tip: A slide kick will instantly steal the Shine.",
     "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
-    "Mod created by EmilyEmmi, with help from EmeraldLockdown and some resources from NeedleN64 and Blocky.", -- TODO: fix cutoff, add shell rush credits
+    "Mod created by EmilyEmmi, with help from EmeraldLockdown and resources from others.",
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
     "Tip: The host can reset the Shine's position with /reset.",
     "Tip: The player holding the Shine moves a bit slower.",
@@ -49,7 +49,7 @@ local tip_variant = {
     "Tip: Press SPECIAL_BUTTON to spawn a shell. This can also be done in midair.",
     "Tip: You'll jump higher and fall slower. Hold Z to fall faster.",
     "Tip: Hold SPECIAL_BUTTON to boost!",
-    "Tip: Press SPECIAL_BUTTON to throw bombs.",
+    "Tip: Press SPECIAL_BUTTON to throw bombs. Use the D-PAD to change the direction.",
     "Tip: Hold SPECIAL_BUTTON to boost! This can also be done while flying.",
 }
 local tip_item = {
@@ -63,6 +63,7 @@ local tip_item = {
     "Tip: Players falling behind will get better items.",
     "Tip: The Fire Flower can be used 5 times.",
     "Tip: The Bullet Bill item turns you into a Bullet Bill for 5 seconds.",
+    "Tip: Only certain items can be obtained while close to victory.",
 }
 local SPECIAL_BUTTON_STRING = "Y"
 local ITEM_BUTTON_STRING = "X"
@@ -173,9 +174,10 @@ local menu_data = {
             nameRef = { "Choose", "Vote", "Random" },
             runOnChange = true
         },
-        { "Variant", function(x) menuVariant = x end,            currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,    runOnChange = true },
-        { "Teams",   function(x) menuTeam = x end,               currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,            runOnChange = true },
-        { "Items",   function(x) gGlobalSyncTable.items = x end, currNum = 1, minNum = 0,  maxNum = 3,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
+        { "Variant",  function(x) menuVariant = x end,                     currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,                              runOnChange = true },
+        { "Teams",    function(x) menuTeam = x end,                        currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,                                      runOnChange = true },
+        { "Items",    function(x) gGlobalSyncTable.items = x end,          currNum = 1, minNum = 0,  maxNum = 3,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
+        { "God Mode", function(x) gGlobalSyncTable.godMode = (x == 1) end, currNum = 0, minNum = 0,  maxNum = 1,                 nameRef = { "OFF", "ON" },                           runOnChange = true },
     },
     [6] = {
         {
@@ -311,7 +313,7 @@ function on_hud_render()
 
         if tipNum == 0 then
             if gGlobalSyncTable.items ~= 0 then
-                tipNum = math.random(1, #tip_general+#tip_item)
+                tipNum = math.random(1, #tip_general + #tip_item)
             else
                 tipNum = math.random(1, #tip_general)
             end
@@ -319,7 +321,7 @@ function on_hud_render()
         djui_hud_set_font(FONT_MENU)
         local subText3
         if tipNum > #tip_general then
-            subText3 = tip_item[tipNum-#tip_general]
+            subText3 = tip_item[tipNum - #tip_general]
         else
             subText3 = tip_general[tipNum]
         end
@@ -442,7 +444,7 @@ function on_hud_render()
             -- nothing
         elseif gGlobalSyncTable.variant == 0 then
             if tipNum > #tip_general then
-                subText3 = tip_item[tipNum-#tip_general]
+                subText3 = tip_item[tipNum - #tip_general]
             else
                 subText3 = tip_general[tipNum]
             end
@@ -1296,6 +1298,20 @@ local TEAM_COLORS = {
 
 HEAD_HUD = get_texture_info("hud_head_recolor")
 WING_HUD = get_texture_info("hud_wing")
+CS_ACTIVE = _G.charSelectExists
+if CS_ACTIVE then
+    _G.charSelect.hook_allow_menu_open(function()
+        return not (inMenu or showGameResults)
+    end)
+end
+
+local defaultIcons = {
+    [gTextures.mario_head] = true,
+    [gTextures.luigi_head] = true,
+    [gTextures.toad_head] = true,
+    [gTextures.waluigi_head] = true,
+    [gTextures.wario_head] = true,
+}
 
 -- the actual head render function.
 --- @param index integer
@@ -1307,6 +1323,23 @@ function render_player_head(index, x, y, scaleX, scaleY)
     local m = gMarioStates[index]
     local sMario = gPlayerSyncTable[index]
     local np = gNetworkPlayers[index]
+
+    if CS_ACTIVE then
+        djui_hud_set_color(255, 255, 255, 255)
+        local TEX_CS_ICON = _G.charSelect.character_get_life_icon(index)
+        if TEX_CS_ICON and not defaultIcons[TEX_CS_ICON] then
+            djui_hud_render_texture(TEX_CS_ICON, x, y, scaleX / (TEX_CS_ICON.width * 0.0625),
+                scaleY / (TEX_CS_ICON.width * 0.0625))
+            return
+        elseif TEX_CS_ICON == nil then
+            djui_hud_set_font(FONT_HUD)
+            djui_hud_print_text("?", x, y, scaleX)
+            if font then
+                djui_hud_set_font(font)
+            end
+            return
+        end
+    end
 
     local alpha = 255
     if (m.marioBodyState.modelState & MODEL_STATE_NOISE_ALPHA) ~= 0 then
