@@ -115,7 +115,7 @@ item_data = {
 
             m.vel.y = 69 -- triple jump height
             if m.action & ACT_FLAG_RIDING_SHELL == 0 then
-                set_mario_action(m, ACT_CAPE_JUMP, 0)
+                drop_and_set_mario_action(m, ACT_CAPE_JUMP, 0)
             else
                 set_mario_action(m, ACT_CAPE_JUMP_SHELL, 0)
             end
@@ -494,7 +494,7 @@ function banana_loop(o)
             obj_mark_for_deletion(o)
         end
     end
-    if (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 or o.oTimer > 900 then
+    if (o.oInteractStatus & INT_STATUS_ATTACKED_MARIO) ~= 0 or o.oTimer > 900 then
         obj_mark_for_deletion(o)
     end
 end
@@ -596,6 +596,7 @@ function boomerang_loop(o)
     if index == 0 and o.coopFlags & COOP_OBJ_FLAG_NETWORK ~= 0 then
         network_send_object(o, true)
     end
+    o.oInteractStatus = 0
 end
 
 id_bhvBoomerang = hook_behavior(nil, OBJ_LIST_GENACTOR, true, boomerang_init, boomerang_loop, "bhvBoomerang")
@@ -686,7 +687,7 @@ function red_shell_loop(o)
         o.oAnimState = 0
     end
 
-    if o.oTimer > 300 or (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
+    if o.oTimer > 300 or (o.oInteractStatus & INT_STATUS_ATTACKED_MARIO) ~= 0 then
         spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
         obj_mark_for_deletion(o)
     end

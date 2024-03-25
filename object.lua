@@ -473,14 +473,14 @@ end
 function thrown_bomb_loop(o)
     if o.oAction ~= 1 then
         local collisionFlags = object_step();
-        if o.oAnimState == -1 or (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 or ((collisionFlags & OBJ_COL_FLAG_GROUNDED) ~= 0) or o.oTimer > 300 then
+        if o.oAnimState == -1 or (o.oInteractStatus & INT_STATUS_ATTACKED_MARIO) ~= 0 or ((collisionFlags & OBJ_COL_FLAG_GROUNDED) ~= 0) or o.oTimer > 300 then
             cur_obj_change_action(1)
             obj_set_model_extended(o, E_MODEL_EXPLOSION)
             obj_set_billboard(o)
             bhv_explosion_init()
 
             o.oAnimState = -1
-            if (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
+            if (o.oInteractStatus & INT_STATUS_ATTACKED_MARIO) ~= 0 then
                 network_send_object(o, true)
             end
         end

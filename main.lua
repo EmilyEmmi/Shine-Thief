@@ -27,7 +27,7 @@ gGlobalSyncTable.godMode = false
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
-gServerSettings.playerInteractions = PLAYER_INTERACTIONS_SOLID
+gServerSettings.playerInteractions = PLAYER_INTERACTIONS_PVP
 gServerSettings.stayInLevelAfterStar = 0
 
 gLevelValues.fixCollisionBugs = true

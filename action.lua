@@ -365,8 +365,8 @@ function allow_interact(m, o, type)
         if gPlayerSyncTable[m.playerIndex].star then
             return false
         elseif is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
-            local np = network_player_from_global_index(o.oObjectOwner or 0)
-            return (np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], true))
+            local np = network_player_from_global_index(o.oObjectOwner)
+            return (np and np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], true))
         end
     end
 end
@@ -381,7 +381,7 @@ function on_interact(m, o, type, value)
             m.flags = m.flags & ~MARIO_METAL_CAP
         end
     elseif m.playerIndex == 0 and (type == INTERACT_DAMAGE or type == INTERACT_FLAME) and is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
-        if m.invincTimer > 0 or (m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) ~= 0) then return end
+        if m.invincTimer > 0 or m.interactObj ~= o then return end
         local np = network_player_from_global_index(o.oObjectOwner or 0)
         on_pvp_attack(gMarioStates[np.localIndex], m, false, true)
         m.hurtCounter = 0
