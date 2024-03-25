@@ -410,7 +410,7 @@ function shine_marker_loop(o)
     -- anti-camp
     local m = gMarioStates[0]
     local dist = dist_between_objects(o, m.marioObj)
-    if dist < 400 and get_player_owned_shine(0) == 0 then
+    if dist < 400 and gGlobalSyncTable.gameState == 2 and get_player_owned_shine(0) == 0 then
         if o.oTimer > 150 then
             djui_popup_create("No camping the spawn point!", 1)
 
@@ -698,7 +698,7 @@ function on_obj_render(o)
         end
         o.oFaceAnglePitch = (data.pitchOffset or 0)
         o.oFaceAngleYaw = m.faceAngle.y + (data.yawOffset or 0)
-        o.oFaceAngleRoll = m.faceAngle.z + (data.rollOffset or 0)
+        o.oFaceAngleRoll = (data.rollOffset or 0)
         if data.forwardOffset then
             o.oPosX = o.oPosX + sins(o.oFaceAngleYaw) * data.forwardOffset
             o.oPosZ = o.oPosZ + coss(o.oFaceAngleYaw) * data.forwardOffset
@@ -812,6 +812,14 @@ end
 
 hook_behavior(id_bhvBowser, OBJ_LIST_GENACTOR, false, nil, custom_bowser_loop, "id_bhvBowser")
 
+-- make star pieces fall over time
+function custom_falling_platform_loop(o)
+    if o.oAction ~= 2 and o.oTimer > (o.oBehParams2ndByte) * 900 + 300 then
+        cur_obj_change_action(2)
+    end
+end
+hook_behavior(id_bhvFallingBowserPlatform, OBJ_LIST_SURFACE, false, nil, custom_falling_platform_loop, "bhvFallingBowserPlatform")
+
 -- delete objects
 function set_spawn_potential(o)
     if not already_spawn[o] then
@@ -826,6 +834,10 @@ local id_level_exception = {
     [id_bhvBowserFlameSpawn] = 1,
     [id_bhvFlameBowser] = 1,
     [id_bhvFlameMovingForwardGrowing] = 1,
+    [id_bhvFlameBouncing] = 1,
+    [id_bhvFlameFloatingLanding] = 1,
+    [id_bhvFlameLargeBurningOut] = 1,
+    [id_bhvBlueBowserFlame] = 1,
     [id_bhvMrIParticle] = 1,
     [id_bhvFlame] = 1,
     [id_bhvWarp] = 1,

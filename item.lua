@@ -3,7 +3,7 @@
 E_MODEL_BANANA = smlua_model_util_get_id("banana_geo")
 E_MODEL_RED_SHELL = smlua_model_util_get_id("red_shell_geo")
 E_MODEL_BOOMERANG = smlua_model_util_get_id("boomerang_geo")
-E_MODEL_CAPE = E_MODEL_BOOKEND -- TODO: actually make the models
+E_MODEL_CAPE = smlua_model_util_get_id("feather_geo")
 E_MODEL_POW = smlua_model_util_get_id("pow_block_geo")
 
 local ITEM_BANANA = 1
@@ -101,6 +101,12 @@ item_data = {
         first = true,
         model = E_MODEL_CAPE,
         hand = true,
+        yOffset = 7,
+        yawOffset = 0x4000,
+        pitchOffset = -0x2000,
+        forwardOffset = -10,
+        sideOffset = 5,
+        scale = 0.7,
         func = function(dir)
             local m = gMarioStates[0]
             if m.action & ACT_FLAG_SWIMMING ~= 0 then
@@ -270,7 +276,7 @@ item_data = {
     },
     [ITEM_BOMB] = {
         weight = 20,
-        frantic = true,
+        first = true,
         hand = true,
         scale = 0.4,
         yOffset = -20,
@@ -327,20 +333,15 @@ function random_item()
             valid = false
         elseif get_player_owned_shine(0) ~= 0 and (sMario.shineTimer >= gGlobalSyncTable.winTime - 15) and not data.first then -- only certain items when close to winning and owning shine
             valid = false
-        elseif sMario.shineTimer < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 then                -- after 30 seconds, players not doing well get better items
-            if data.frantic then
-                weight = weight * 2
-            else
-                weight = weight // 2
-            end
+        elseif sMario.shineTimer < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 and data.frantic then                -- after 30 seconds, players not doing well get better items
+            weight = weight * 2
         end
 
         -- frantic/skilled
         if valid and gGlobalSyncTable.items > 1 then
-            if data.frantic == (gGlobalSyncTable.items == 2) then -- for frantic, frantic items have a higher chance, and vice versa
+            local frantic = data.frantic or false
+            if frantic == (gGlobalSyncTable.items == 2) then -- for frantic, frantic items have a higher chance, and vice versa
                 weight = weight * 4
-            else
-                weight = weight // 4
             end
         end
 
@@ -351,17 +352,18 @@ function random_item()
         end
     end
 
+    local value = math.random(1, maxWeight)
     -- display probabilities for testing
     if DEBUG_MODE then
         local prevWeight = 0
         for i, weight in ipairs(weightRange) do
-            djui_chat_message_create(string.format("%d: %d (%.2f%%)", itemRange[i], weight - prevWeight,
+            djui_chat_message_create(string.format("%d: %d-%d (%d, %.2f%%)", itemRange[i], prevWeight, weight, weight - prevWeight,
                 ((weight - prevWeight) / maxWeight) * 100))
             prevWeight = weight
         end
+        djui_chat_message_create(tostring(value))
     end
 
-    local value = math.random(1, maxWeight)
     for i, weight in ipairs(weightRange) do
         if value <= weight then
             return itemRange[i] or ITEM_BANANA

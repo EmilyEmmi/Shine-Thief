@@ -520,7 +520,7 @@ function mario_update(m)
     end
 
     -- items and shine passing
-    if m.playerIndex == 0 and gGlobalSyncTable.gameState == 2 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
+    if m.playerIndex == 0 and gGlobalSyncTable.gameState ~= 3 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
         local throwDir = throw_direction()
         if sMario.item ~= 0 and throwDir ~= 4 then
             sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
@@ -907,7 +907,7 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
 
         if not item and ((sAttacker.star and not sVictim.star) or (sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0)
                 or attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP
-                or attacker.action == ACT_CAPE_JUMP or attacker.action == ACT_CAPE_SHELL_JUMP or cappyAttack) then
+                or attacker.action == ACT_CAPE_JUMP or attacker.action == ACT_CAPE_JUMP_SHELL or cappyAttack) then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
                 if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
                     cappyStealer = attacker.playerIndex
@@ -1134,6 +1134,7 @@ function on_sync_valid()
         save_file_set_flags(SAVE_FLAG_MOAT_DRAINED)
         save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
         save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
+        math.randomseed(get_time(), gNetworkPlayers[0].globalIndex)
 
         sMario.team = calculate_lowest_member_team()
         if _G.OmmEnabled then

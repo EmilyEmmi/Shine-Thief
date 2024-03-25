@@ -271,6 +271,8 @@ function act_shine_lose(m)
     end
     set_mario_animation(m, MARIO_ANIM_DYING_FALL_OVER)
     disable_background_sound()
+    vec3f_copy(m.marioObj.header.gfx.pos, m.pos);
+    vec3s_set(m.marioObj.header.gfx.angle, 0, m.faceAngle.y, 0)
     if m.playerIndex == 0 and m.actionTimer == 180 then
         set_background_music(100, SEQ_LEVEL_INSIDE_CASTLE, 15)
         showGameResults = true
@@ -378,7 +380,7 @@ function on_interact(m, o, type, value)
         if gPlayerSyncTable[m.playerIndex].star then
             m.flags = m.flags & ~MARIO_METAL_CAP
         end
-    elseif m.playerIndex == 0 and type == INTERACT_DAMAGE or type == INTERACT_FLAME and is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
+    elseif m.playerIndex == 0 and (type == INTERACT_DAMAGE or type == INTERACT_FLAME) and is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
         if m.invincTimer > 0 or (m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) ~= 0) then return end
         local np = network_player_from_global_index(o.oObjectOwner or 0)
         on_pvp_attack(gMarioStates[np.localIndex], m, false, true)

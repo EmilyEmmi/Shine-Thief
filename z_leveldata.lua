@@ -369,7 +369,6 @@ levelData = {
         course = COURSE_TTM,
         area = 1,
         tex = "painting_08",
-        noWater = true,
 
         startLocations = {
             [0] = { 95, -3332, 5693 },

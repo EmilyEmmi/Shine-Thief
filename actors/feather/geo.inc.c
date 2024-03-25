@@ -1,6 +1,6 @@
 #include "src/game/envfx_snow.h"
 
-const GeoLayout pow_block_geo[] = {
+const GeoLayout feather_geo[] = {
 	GEO_NODE_START(),
 	GEO_OPEN_NODE(),
 		GEO_CULLING_RADIUS(300),
@@ -11,14 +11,12 @@ const GeoLayout pow_block_geo[] = {
 				GEO_OPEN_NODE(),
 					GEO_NODE_START(),
 					GEO_OPEN_NODE(),
-						GEO_DISPLAY_LIST(LAYER_OPAQUE, pow_block_000_displaylist_mesh_layer_1),
-						GEO_DISPLAY_LIST(LAYER_ALPHA, pow_block_000_displaylist_mesh_layer_4),
+						GEO_DISPLAY_LIST(LAYER_OPAQUE, feather_000_displaylist_mesh_layer_1),
 					GEO_CLOSE_NODE(),
 				GEO_CLOSE_NODE(),
 			GEO_CLOSE_NODE(),
 		GEO_CLOSE_NODE(),
-		GEO_DISPLAY_LIST(LAYER_OPAQUE, pow_block_material_revert_render_settings),
-		GEO_DISPLAY_LIST(LAYER_ALPHA, pow_block_material_revert_render_settings),
+		GEO_DISPLAY_LIST(LAYER_OPAQUE, feather_material_revert_render_settings),
 	GEO_CLOSE_NODE(),
 	GEO_END(),
 };
