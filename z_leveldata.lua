@@ -144,8 +144,46 @@ levelData = {
         shineStart = { -477, 3631, -941 },
 
         objLocations = {
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1861, 2826,  -389, 0, 1, 0, -25100 },
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3317,  -4694, -147, 1, 0, 0, -3600 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -1861, 2826,  -389,  0, 1, 0,   -25100 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        3317,  -4694, -147,  1, 0, 0,   -3600 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -50,   3096,  -1488, 0, 0, 0x0, 0x0 },
+        },
+
+        itemBoxLocations = {
+            { -180,  3282,  -1483 },
+            { -560,  2961,  -1540 },
+            { 2560,  2822,  -1070 },
+            { -1930, 1243,  1749 },
+            { -3176, -1078, -2085 },
+            { -4887, -1618, -4003 },
+            { -5100, -1618, -3327 },
+            { -5324, -1618, -2655 },
+            { -3574, -1989, 6442 },
+            { 203,   357,   -2957 },
+            { 3243,  -4447, 4178 },
+            { 3753,  -4447, 4159 },
+            { 4020,  -4447, 4582 },
+            { 3793,  -4447, 5032 },
+            { 3266,  -4447, 5047 },
+            { 3005,  -4447, 4619 },
+            { 2700,  -4534, 1230 },
+            { 4408,  -4447, -1534 },
+            { 1250,  2600,  -2497 },
+            { 1250,  2600,  -2950 },
+            { -270,  -4584, -3100 },
+            { -2000, -2358, -3000 },
+            { -2807, -4717, -4237 },
+            { -1137, -3423, 6099 },
+            { 4200,  -1068, 400 },
+            { 2900,  -1279, 2599 },
+            { 3832,  -640,  32 },
+            { 3391,  -640,  -409 },
+            { 1346,  -1375, 3105 },
+            { 1663,  -1375, 3761 },
+            { -599,  -351,  1939 },
+            { -1557, -351,  1794 },
+            { -1395, -1477, 4587 },
+            { 4136,  -2911, 456 },
         },
     },
     {
@@ -153,7 +191,7 @@ levelData = {
         course = COURSE_CCM,
         area = 2,
         name = "Snow Slide",
-        tex = "painting_06",
+        tex = "painting_22",
 
         startLocations = {
             [0] = { -5836, 7360, -6143 },
@@ -232,12 +270,42 @@ levelData = {
         objLocations = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, 505, 0, 0, 0, 0, 0x4000 },
         },
+
+        itemBoxLocations = {
+            { -5900, 314, 6400 },
+            { -5800, 312, 1000 },
+            { -5100, 312, 250 },
+            { -4400, 312, 1000 },
+            { -5100, 312, 1750 },
+            { -3133, 325, -2126 },
+            { -2333, 784, 886 },
+            { 1050,  314, 6200 },
+            { 3100,  416, 7900 },
+            { 3261,  723, 5088 },
+            { 6920,  467, 1145 },
+            { 7440,  467, 1145 },
+            { 7440,  467, 1770 },
+            { 6920,  467, 1770 },
+            { 6326,  798, -6580 },
+            { 29,    928, -6714 },
+            { 0,     467, -2085 },
+            { -1924, 160, 3663 },
+            { -6780, 359, -6766 },
+            { 4856,  314, -579 },
+            { 3110,  467, -5603 },
+            { 3685,  467, -5603 },
+            { 4460,  467, -5603 },
+            { 3300,  165, -3720 },
+            { 4350,  165, -3700 },
+            { 4390,  165, -2660 },
+            { 3350,  165, -2680 },
+        },
     },
     {
         level = LEVEL_LLL,
         course = COURSE_LLL,
         area = 2,
-        tex = "painting_02",
+        tex = "painting_23",
         name = "Inside Of The Volcano",
 
         startLocations = {
@@ -265,11 +333,41 @@ levelData = {
         course = COURSE_SSL,
         area = 1,
         tex = "painting_03",
+        noWater = true,
 
         startLocations = {
             [0] = { 699, 1038, 6566 },
         },
         shineStart = { -2047, 1200, -519 },
+
+        itemBoxLocations = {
+            { 5900,  211,  2300 },
+            { 5900,  211,  2800 },
+            { 5900,  211,  3300 },
+            { 5900,  774,  2300 },
+            { 5900,  774,  2800 },
+            { 5900,  774,  3300 },
+            { 6380,  160,  -2330 },
+            { 6937,  160,  -3333 },
+            { 6900,  160,  -5400 },
+            { 5906,  160,  -4867 },
+            { 3380,  160,  -4900 },
+            { 792,   160,  -5903 },
+            { -1239, 160,  -6393 },
+            { 1817,  1184, 783 },
+            { 1787,  1056, -2545 },
+            { -5884, 1184, -2552 },
+            { -5853, 1184, 776 },
+            { -3000, 416,  800 },
+            { -1200, 416,  800 },
+            { -230,  160,  4164 },
+            { -4843, 160,  2194 },
+            { 4392,  160,  7182 },
+            { 4399,  160,  6350 },
+            { 4396,  160,  6740 },
+            { -2040, 928,  -2160 },
+            { -570,  672,  -980 },
+        },
     },
     {
         level = LEVEL_SSL,
@@ -286,8 +384,35 @@ levelData = {
         shineStart = { 0, -63, 525 },
 
         objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, -243, 525 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0, 510,  -300, 0, 0, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0,    -243, 525 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 0,    510,  -300, 0, 0, 0x4000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1280, 3942, 1269, 1, 0, 0x0,   -0x4000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -11,  -81,  2390, 0, 1, 0x0,   0x0 },
+        },
+
+        itemBoxLocations = {
+            { -1415, 79,   122 },
+            { -886,  79,   -650 },
+            { -1387, 79,   -1423 },
+            { -2668, 79,   -1426 },
+            { -2687, 79,   116 },
+            { 1926,  79,   -1367 },
+            { 2692,  79,   -2526 },
+            { 3422,  811,  98 },
+            { 900,   1389, 2350 },
+            { -1940, 1389, 2320 },
+            { -1940, 1389, -600 },
+            { 260,   2127, -600 },
+            { -260,  3100, -600 },
+            { 260,   4073, -600 },
+            { 502,   4975, -550 },
+            { -400,  2080, -2250 },
+            { -3536, 160,  -3705 },
+            { -1242, 160,  -3957 },
+            { -15,   595,  -3493 },
+            { -10,   1056, -1410 },
+            { 42,    2034, 2795 },
+            { 2870,  1138, -2640 },
         },
     },
     {
@@ -295,11 +420,45 @@ levelData = {
         course = COURSE_SL,
         area = 1,
         tex = "painting_13",
+        noWater = true,
 
         startLocations = {
             [0] = { 5241, 2024, 143 },
         },
         shineStart = { 304, 1512, -4543 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 4374, 1229, 4359, 0, 1, 0x0, -0x63cf },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -480, 3584, 1350, 1, 0, 0x0, 0x6000 },
+        },
+
+        itemBoxLocations = {
+            { 700,   4511, 690 },
+            { 325,   1112, -4499 },
+            { -3380, 1293, -4140 },
+            { -4211, 1252, -4723 },
+            { -3592, 1232, -5732 },
+            { -6560, 2208, -5080 },
+            { -6760, 2208, -1360 },
+            { -6880, 2017, 1000 },
+            { -6271, 1492, 4764 },
+            { -5450, 1184, 5900 },
+            { -4700, 1184, 5850 },
+            { -5688, 939,  3270 },
+            { -4960, 959,  3289 },
+            { -4025, 962,  3313 },
+            { 3608,  1785, -3152 },
+            { 2199,  1698, -3277 },
+            { 1864,  1696, -2750 },
+            { 1529,  1696, -2223 },
+            { -768,  1696, -2500 },
+            { 4358,  2003, 4984 },
+            { 2553,  1184, 5653 },
+            { 1694,  1184, 5282 },
+            { 2272,  1184, 3945 },
+            { 3131,  1184, 4317 },
+            { 2365,  1184, 4778 },
+        },
     },
     {
         level = LEVEL_WDW,
@@ -329,6 +488,38 @@ levelData = {
             { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        2869,  0,    -718,  0, 1, 0, -40 },
             { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3623, 3584, -3623, 1, 0, 0, 7527 },
         },
+
+        itemBoxLocations = {
+            { 3388,  1440, 1155 },
+            { 3360,  1440, 2660 },
+            { -3739, 160,  4120 },
+            { -3689, 160,  3205 },
+            { -2200, 544,  1145 },
+            { -2200, 2464, 3500 },
+            { 16,    3360, 3584 },
+            { 1550,  4256, 100 },
+            { 3724,  3236, -3610 },
+            { 4398,  3236, -3585 },
+            { 4398,  3236, -3023 },
+            { 3735,  3236, -3045 },
+            { 943,   3744, -1779 },
+            { 2794,  1079, -1477 },
+            { 1680,  1901, 2207 },
+            { -2075, 2976, -524 },
+            { -2200, 2464, -3700 },
+            { -788,  3232, -3588 },
+            { -3097, 3744, -3056 },
+            { -3471, 3744, -2695 },
+            { -2723, 3744, -3417 },
+            { -1446, 4000, -1444 },
+            { -882,  4018, 1164 },
+            { -1129, 3857, 1404 },
+            { -759,  2336, 2222 },
+            { -2066, 1312, 211 },
+            { -2034, 1312, 938 },
+            { 527,   544,  -120 },
+            { 529,   544,  816 },
+        },
     },
     {
         level = LEVEL_WDW,
@@ -337,6 +528,7 @@ levelData = {
         noWater = true,
         tex = "painting_09",
         name = "Wet-Dry Town",
+        romhack_cam = true,
         levelSize = 3800,
 
         startLocations = {
@@ -363,6 +555,22 @@ levelData = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3525, -700, -1590, 0, 0, 0x4000, 0 },
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3010, -700, -1590, 0, 0, 0x4000, 0 },
         },
+
+        itemBoxLocations = {
+            { -800,  -2399, -200 },
+            { -770,  -1631, 3600 },
+            { 1820,  -1247, 1020 },
+            { -240,  -1631, 2290 },
+            { -1260, -1631, 2310 },
+            { -1779, -2399, 3644 },
+            { -2930, -1119, 2560 },
+            { -2930, -1119, 3080 },
+            { -2930, -1119, 2040 },
+            { -3720, -991,  520 },
+            { 100,   -1631, -1500 },
+            { 1655,  -2348, -1293 },
+            { -770,  -146,  2790 },
+        },
     },
     {
         level = LEVEL_TTM,
@@ -376,8 +584,45 @@ levelData = {
         shineStart = { -3215, -2543, -3750 },
 
         objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3281, -1510, 3541, 0, 0, 0, 24576 },
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3800, -1510, 3000, 0, 0, 0, 24576 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3281, -1510, 3541, 0, 0, 0,   24576 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 3800, -1510, 3000, 0, 0, 0,   24576 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        5009, -3848, 5124, 0, 1, 0x0, -0x5755 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        857,  2309,  609,  1, 0, 0x0, 0x603c },
+        },
+
+        itemBoxLocations = {
+            { -3713, -3991, 3530 },
+            { -1600, -1580, -2500 },
+            { -1200, -1529, -3250 },
+            { -848,  -3288, -4365 },
+            { 1450,  -2712, -4250 },
+            { 1840,  -2726, -3600 },
+            { 2550,  -2675, -3400 },
+            { 3261,  -2713, -4092 },
+            { 4150,  -2713, -2800 },
+            { -1035, -556,  -3400 },
+            { -1500, -761,  -2750 },
+            { -1850, 160,   -2850 },
+            { 4302,  -3214, 1655 },
+            { 4613,  -3214, 1648 },
+            { -2639, -1988, 2547 },
+            { -3141, -1987, 3337 },
+            { -3213, -2043, 2675 },
+            { -2423, -1957, 3177 },
+            { 3542,  -1157, 3293 },
+            { 1624,  780,   1918 },
+            { 1800,  1241,  1050 },
+            { 2408,  1624,  2020 },
+            { 1088,  2466,  -304 },
+            { 1436,  2466,  83 },
+            { 1715,  2466,  392 },
+            { -899,  1395,  -1071 },
+            { 2043,  -418,  -2994 },
+            { 909,   -176,  -3150 },
+            { -472,  150,   -3025 },
+            { 126,   22,    -2925 },
+            { 1479,  -283,  -2844 },
+            { 2512,  -1346, 1330 },
         },
     },
     {
@@ -393,6 +638,20 @@ levelData = {
             [0] = { -2119, 110, 2058 },
         },
         shineStart = { 3, 1327, -448 },
+
+        itemBoxLocations = {
+            { -1866, -607, 311 },
+            { -1779, -453, -1753 },
+            { -1485, 7,    112 },
+            { -916,  7,    1144 },
+            { -142,  -607, 1992 },
+            { 1988,  -689, 2094 },
+            { 1849,  -453, -183 },
+            { 2035,  -300, -1687 },
+            { 0,     -607, -4500 },
+            { -952,  314,  -1114 },
+            { 687,   -453, -1551 },
+        },
     },
     {
         level = LEVEL_THI,
@@ -479,6 +738,20 @@ levelData = {
         objLocations = {
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 240, 932, 189, 0, 0, 0x0, 0x0 },
         },
+
+        itemBoxLocations = {
+            { -1920, 1696, -1040 },
+            { -1914, 1491, -1909 },
+            { -683,  1594, 1284 },
+            { -1380, 1594, 1512 },
+            { 510,   1168, 2152 },
+            { -238,  1874, -1319 },
+            { 1038,  1800, -823 },
+            { 1590,  1910, 160 },
+            { 1038,  1826, 998 },
+            { -523,  1704, -500 },
+            { -1838, 1932, 338 },
+        },
     },
     {
         level = LEVEL_RR,
@@ -492,8 +765,57 @@ levelData = {
         shineStart = { -506, -956, -50 },
 
         objLocations = {
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5137, -1782, -42,   0, 1, 0, 0 },
-            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4222, 3379,  -3052, 1, 0, 0, 32768 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5137, -1782, -42,   0, 1, 0,   0 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -4160, 6451,  -5890, 1, 0, 0x0, 0x0 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 2615,  -1833, 2092,  2, 3, 0x0, 0x4000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 5550,  3333,  -2360, 3, 2, 0x0, -0x4000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5850, -1116, 4950,  4, 5, 0x0, 0x4000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3700,  -732,  6600,  5, 4, 0x0, 0x4000 },
+        },
+
+        itemBoxLocations = {
+            { -2950, -137,  -50 },
+            { -5850, -956,  -50 },
+            { -7071, -1622, -31 },
+            { -5800, -342,  -50 },
+            { -5300, -342,  -50 },
+            { -4550, 732,   -50 },
+            { -5050, 886,   -50 },
+            { -5850, 1193,  50 },
+            { 200,   -956,  1249 },
+            { 1032,  -956,  1238 },
+            { 168,   -956,  -1351 },
+            { 1104,  -956,  -1363 },
+            { 5040,  2116,  280 },
+            { 5016,  3979,  4060 },
+            { 1450,  3321,  -2352 },
+            { -3428, 6611,  -5128 },
+            { -4200, 6611,  -4450 },
+            { -4970, 6611,  -5120 },
+            { 1902,  3243,  -636 },
+            { -844,  1850,  -160 },
+            { -6750, 2524,  -50 },
+            { -2694, 2524,  -50 },
+            { -5814, 2524,  -49 },
+            { -4774, 2524,  -47 },
+            { -3631, 2524,  -46 },
+            { -957,  2972,  -134 },
+            { 2572,  1193,  -1629 },
+            { 466,   -2902, 4733 },
+            { 778,   -2902, 4729 },
+            { -705,  -2799, 6575 },
+            { -1258, -1775, 6575 },
+            { -3612, -1569, 4772 },
+            { 6383,  -1391, 6562 },
+            { 5973,  -982,  6567 },
+            { 5538,  -777,  6547 },
+            { 790,   -1366, 6580 },
+            { -4844, -4438, 6622 },
+            { -3330, 3382,  -5485 },
+            { -3330, 3382,  -4652 },
+            { -4200, 3539,  -3078 },
+            { -6550, 4102,  -2320 },
+            { -7743, 4512,  -3823 },
         },
     },
     {
@@ -509,9 +831,36 @@ levelData = {
         shineStart = { 0, 1066, -1200 },
 
         objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3383, -550, -2025, 0, 0, 0 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1370,  3174, -4020, 0, 1, 0x0, -0x8000 },
-            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -5350, 343,  50,    1, 0, 0x0, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3383, -550,  -2025, 0, 0, 0 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1370,  3174,  -4020, 0, 1, 0x0, -0x8000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -5350, 343,   50,    1, 0, 0x0, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3790, -1250, -5980 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -3790, -1250, -5680 },
+        },
+
+        itemBoxLocations = {
+            { -440,  3334,  -5000 },
+            { 0,     3334,  -5220 },
+            { 440,   3334,  -5000 },
+            { -500,  -351,  -1200 },
+            { -500,  -351,  -576 },
+            { -500,  -351,  -1824 },
+            { 2385,  225,   1950 },
+            { 5968,  -1170, 3557 },
+            { 6465,  -1170, 3670 },
+            { 4662,  -1170, 3274 },
+            { 4035,  565,   -670 },
+            { 4126,  565,   -399 },
+            { -5642, 585,   3371 },
+            { -5823, 420,   1067 },
+            { -6128, 645,   -2771 },
+            { -3800, -1068, -4858 },
+            { -4300, -1068, -4858 },
+            { -4800, -1068, -4858 },
+            { 5956,  812,   -3706 },
+            { 6436,  858,   -3640 },
+            { 6955,  917,   -3603 },
+            { -1946, 748,   2250 },
         },
     },
     {
@@ -570,15 +919,15 @@ levelData = {
             { 3200,  6304,  -5631 },
             { 3200,  6304,  -5331 },
             { 3200,  6304,  -5931 },
-            { -1400, 2938,  2177 },
-            { -1400, 2938,  1877 },
-            { -1400, 2938,  2477 },
-            { 1861,  -1785, -2890 },
-            { 2161,  -1785, -2890 },
-            { 1561,  -1785, -2890 },
-            { -6360, -4394, 3700 },
-            { -6060, -4394, 3700 },
-            { -6660, -4394, 3700 },
+            { -1400, 2858,  2177 },
+            { -1400, 2858,  1877 },
+            { -1400, 2858,  2477 },
+            { 1861,  -1865, -2890 },
+            { 2161,  -1865, -2890 },
+            { 1561,  -1865, -2890 },
+            { -6360, -4474, 3700 },
+            { -6060, -4474, 3700 },
+            { -6660, -4474, 3700 },
             { -7180, -4427, 5670 },
         },
     },
@@ -586,8 +935,7 @@ levelData = {
         level = LEVEL_SA,
         course = COURSE_SA,
         area = 1,
-        tex = "painting_19",
-        name = "Drained Aquarium",
+        tex = "painting_24",
         levelSize = 3021,
         romhack_cam = true,
         noWater = true,
@@ -750,6 +1098,7 @@ function setup_level_data(level)
         thisLevel = {}
         thisLevel.level = tonumber(args[1]) or LEVEL_WF
         thisLevel.area = tonumber(args[2]) or 1
+
         thisLevel.noWater = (tonumber(args[3]) == 1)
     end
     if arenaSpawnLocations[0] then
@@ -772,7 +1121,8 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
     m.invincTimer = 90 -- 3 seconds
     local pos = {}
     if thisLevel.startLocations and thisLevel.startLocations[1] then
-        local location = thisLevel.startLocations[(globalIndex + gGlobalSyncTable.spawnOffset) % MAX_PLAYERS]
+        local location = thisLevel.startLocations
+        [(globalIndex + gGlobalSyncTable.spawnOffset) % (#thisLevel.startLocations + 1)]
         if location == nil then location = thisLevel.startLocations[1] end
         pos = { location[1], location[2], location[3] }
     else
@@ -793,6 +1143,7 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
     if spawning then
         m.pos.y = pos[2]
         m.vel.y = 0
+        mario_set_forward_vel(m, 0)
         m.marioObj.oPosX = pos[1]
         m.marioObj.oPosZ = pos[3]
         m.squishTimer = 0
@@ -808,15 +1159,17 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             showGameResults = false
             if thisLevel.romhack_cam then
                 m.area.camera.defMode = CAMERA_MODE_ROM_HACK
-                set_camera_mode(m.area.camera, CAMERA_MODE_ROM_HACK, 0)
             end
+            set_camera_mode(m.area.camera, m.area.camera.defMode, 0)
             soft_reset_camera(m.area.camera)
+
             set_ttc_speed_setting(1)
             gMarioStates[0].numStars = 0
             save_file_set_using_backup_slot(true)
             save_file_set_flags(SAVE_FLAG_MOAT_DRAINED)
             save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
             save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
+
             gPlayerSyncTable[0].item = 0
             gPlayerSyncTable[0].itemUses = 0
             gPlayerSyncTable[0].mushroomTime = 0

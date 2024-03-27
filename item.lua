@@ -133,6 +133,7 @@ item_data = {
         sideOffset = -20,
         hand = true,
         model = E_MODEL_BOOMERANG,
+        maxUses = 3,
         func = function(dir, uses)
             local m = gMarioStates[0]
             local np = gNetworkPlayers[0]
@@ -246,6 +247,7 @@ item_data = {
         scale = 2,
         model = E_MODEL_RED_FLAME,
         updateAnimState = true,
+        maxUses = 5,
         func = function(dir, uses)
             local m = gMarioStates[0]
             local np = gNetworkPlayers[0]
@@ -593,7 +595,7 @@ function boomerang_loop(o)
         obj_mark_for_deletion(o)
     end
 
-    if index == 0 and o.coopFlags & COOP_OBJ_FLAG_NETWORK ~= 0 then
+    if index == 0 then
         network_send_object(o, true)
     end
     o.oInteractStatus = 0
@@ -643,7 +645,7 @@ function red_shell_loop(o)
     if targetIndex ~= 255 then
         local sMario = gPlayerSyncTable[targetIndex]
         local m = gMarioStates[targetIndex]
-        if not (is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator) then
+        if not (is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team ~= 0 or sMario.team == team) and not sMario.spectator) then
             targetIndex = 255
         else
             bestYaw = obj_angle_to_object(o, m.marioObj)
@@ -654,7 +656,7 @@ function red_shell_loop(o)
         for i = 0, MAX_PLAYERS - 1 do -- target closest opponent
             local sMario = gPlayerSyncTable[i]
             local m = gMarioStates[i]
-            if i ~= index and is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team == team) and not sMario.spectator then
+            if i ~= index and is_player_active(m) ~= 0 and m.invincTimer == 0 and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and (sMario.team == nil or sMario.team == 0 or sMario.team ~= team) and not sMario.spectator then
                 local dist = dist_between_objects(o, m.marioObj)
                 local yaw = obj_angle_to_object(o, m.marioObj)
                 if dist < maxDist and abs_angle_diff(yaw, o.oMoveAngleYaw) <= 0x4000 then -- only target in front of
@@ -732,7 +734,8 @@ function fireball_loop(o)
     o.oAnimState = o.oAnimState + 1
     if stepResult & OBJ_MOVE_LANDED ~= 0 then
         cur_obj_play_sound_1(SOUND_AIR_BOWSER_SPIT_FIRE)
-        if o.oFlameSpeedTimerOffset > 5 then
+        cur_obj_update_floor()
+        if o.oFlameSpeedTimerOffset > 5 or o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND then
             spawn_triangle_break_particles(2, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
             obj_mark_for_deletion(o)
         else

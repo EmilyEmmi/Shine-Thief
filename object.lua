@@ -125,7 +125,7 @@ function bhv_shine_loop(o)
             cur_obj_become_tangible()
         end
 
-        if o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND and (o.oPosY - o.oFloorHeight < 2048) then -- return if fallen
+        if (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND) and (o.oPosY - o.oFloorHeight < 2048) then -- return if fallen
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
@@ -371,7 +371,6 @@ function st_pipe_loop(o)
                 mario_set_forward_vel(m, 0)
                 m.pos.y = pair.oPosY - 320
                 m.vel.y = math.min(0, m.vel.y)
-                m.marioObj.oPosY = m.pos.y -- fix weird issue where the player bounces and ends up in the void
                 m.invincTimer = math.max(m.invincTimer, 20)
             end
 
@@ -388,6 +387,7 @@ function st_pipe_loop(o)
             end
         end
         o.oInteractStatus = 0
+        o.oIntangibleTimer = 2 -- fix double interact
     end
     load_object_collision_model()
 end
@@ -501,6 +501,7 @@ function item_box_init(o)
     hitbox.radius = 80
     hitbox.height = 50
     obj_set_hitbox(o, hitbox)
+    o.oFaceAngleYaw = math.random(0, 0xFFFF)
 
     network_init_object(o, false, {
         'oTimer',
@@ -564,12 +565,6 @@ function held_item_loop(o)
     local sMario = gPlayerSyncTable[o.hookRender - 1]
     local m = gMarioStates[o.hookRender - 1]
 
-    -- dont render off-screen
-    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime ~= gMarioStates[0].marioBodyState.updateTorsoTime)) then
-        cur_obj_disable_rendering()
-        return
-    end
-
     if sMario.bulletTimer and sMario.bulletTimer > 0 then
         if o.unused1 ~= 0 then
             cur_obj_disable_rendering()
@@ -579,20 +574,26 @@ function held_item_loop(o)
         end
         return
     end
-    o.oFaceAnglePitch = 0
-    o.oFaceAngleRoll = 0
+
+    -- dont render off-screen
+    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime ~= torsoTime)) then
+        cur_obj_disable_rendering()
+        return
+    end
 
     if sMario.item == nil or sMario.item == 0 then
         cur_obj_disable_rendering()
         return
     end
     local data = item_data[sMario.item]
+    local model = data.model or E_MODEL_GOOMBA
+    obj_set_model_extended(o, model)
 
     if data.updateAnimState then
         o.oAnimState = o.oAnimState + 1
     end
     if data.animation then
-        o.oAnimations = gObjectAnimations.bobomb_seg8_anims_0802396C
+        o.oAnimations = data.animation
         cur_obj_init_animation(0)
     else
         o.oAnimations = nil
@@ -635,6 +636,8 @@ function held_item_loop(o)
         o.oPosX = m.pos.x + sins(dir) * dist
         o.oPosY = m.pos.y + 40 + (data.yOffset or 0)
         o.oPosZ = m.pos.z + coss(dir) * dist
+        o.oFaceAnglePitch = 0
+        o.oFaceAngleRoll = 0
 
         if data.bill then
             obj_set_billboard(o)
@@ -650,33 +653,30 @@ id_bhvHeldItem = hook_behavior(nil, OBJ_LIST_DEFAULT, true, held_item_init, held
 
 -- item rendering
 function on_obj_render(o)
-    if get_id_from_behavior(o.behavior) ~= id_bhvHeldItem then return end
+    if get_id_from_behavior(o.behavior) ~= id_bhvHeldItem or o.unused1 ~= 0 then return end
     local sMario = gPlayerSyncTable[o.hookRender - 1]
     local m = gMarioStates[o.hookRender - 1]
 
-    -- dont render off-screen
-    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime ~= gMarioStates[0].marioBodyState.updateTorsoTime)) then
-        cur_obj_disable_rendering()
+    if sMario.bulletTimer > 0 then
+        cur_obj_scale(0.25)
+        obj_set_model_extended(o, E_MODEL_BULLET_BILL)
+        o.oPosX = m.pos.x
+        o.oPosY = m.pos.y + 40
+        o.oPosZ = m.pos.z
+        o.oFaceAnglePitch = -m.faceAngle.x
+        o.oFaceAngleYaw = m.faceAngle.y
+        o.oFaceAngleRoll = m.faceAngle.z
+        o.header.gfx.pos.x = o.oPosX
+        o.header.gfx.pos.y = o.oPosY
+        o.header.gfx.pos.z = o.oPosZ
+        o.header.gfx.angle.x = o.oFaceAnglePitch
+        o.header.gfx.angle.y = o.oFaceAngleYaw
+        o.header.gfx.angle.z = o.oFaceAngleRoll
         return
     end
 
-    if sMario.bulletTimer > 0 then
-        if o.unused1 == 0 then
-            cur_obj_scale(1)
-            obj_set_model_extended(o, E_MODEL_BULLET_BILL)
-            o.oPosX = m.pos.x
-            o.oPosY = m.pos.y + 40
-            o.oPosZ = m.pos.z
-            o.oFaceAnglePitch = -m.faceAngle.x
-            o.oFaceAngleYaw = m.faceAngle.y
-            o.oFaceAngleRoll = m.faceAngle.z
-            o.header.gfx.pos.x = o.oPosX
-            o.header.gfx.pos.y = o.oPosY
-            o.header.gfx.pos.z = o.oPosZ
-            o.header.gfx.angle.x = o.oFaceAnglePitch
-            o.header.gfx.angle.y = o.oFaceAngleYaw
-            o.header.gfx.angle.z = o.oFaceAngleRoll
-        end
+    -- dont render off-screen
+    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime ~= torsoTime + 1)) then
         return
     end
 
@@ -685,13 +685,11 @@ function on_obj_render(o)
     end
 
     local data = item_data[sMario.item]
-    local model = data.model or E_MODEL_GOOMBA
-    obj_set_model_extended(o, model)
     if data.hand then
         o.oPosX = get_hand_foot_pos_x(m, 0)
         o.oPosY = get_hand_foot_pos_y(m, 0) + (data.yOffset or 0)
         o.oPosZ = get_hand_foot_pos_z(m, 0)
-        if m.action & (ACT_FLAG_SWIMMING_OR_FLYING) ~= 0 then
+        if m.action & (ACT_FLAG_SWIMMING_OR_FLYING) ~= 0 or m.marioObj.header.gfx.animInfo.animID == MARIO_ANIM_TWIRL then
             o.oPosX = m.pos.x
             o.oPosY = m.pos.y + 100 + (data.yOffset or 0)
             o.oPosZ = m.pos.z
@@ -797,11 +795,18 @@ end
 id_bhvSTShell = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_shell_init, custom_shell_loop, nil)
 
 -- fix bowser
-function custom_bowser_loop(o)
-    if gGlobalSyncTable.gameState == 1 or o.oAction == 5 then
-        cur_obj_change_action(14)
+function fix_bowser()
+    local level = gNetworkPlayers[0].currLevelNum
+    if level ~= LEVEL_BOWSER_1 and level ~= LEVEL_BOWSER_2 and level ~= LEVEL_BOWSER_3 then return end
+    local o = obj_get_first_with_behavior_id(id_bhvBowser)
+    if not o then return end
+
+    if gGlobalSyncTable.gameState == 1 then
+        o.oAction = 5
         o.oForwardVel = 0
-    elseif o.oAction == 2 and o.oSubAction == 1 and o.oTimer > 30 then -- fix softlock?
+    elseif o.oAction == 5 then
+        o.oAction = 14
+    elseif o.oAction == 2 and o.oSubAction == 1 and o.oTimer > 60 then -- fix softlock?
         o.oMoveAngleYaw = o.oBowserAngleToCentre
         o.oVelY = 150
         o.oBowserUnk1AC = 0xFF
@@ -810,7 +815,7 @@ function custom_bowser_loop(o)
     end
 end
 
-hook_behavior(id_bhvBowser, OBJ_LIST_GENACTOR, false, nil, custom_bowser_loop, "id_bhvBowser")
+hook_event(HOOK_UPDATE, fix_bowser)
 
 -- make star pieces fall over time
 function custom_falling_platform_loop(o)
@@ -818,12 +823,22 @@ function custom_falling_platform_loop(o)
         cur_obj_change_action(2)
     end
 end
-hook_behavior(id_bhvFallingBowserPlatform, OBJ_LIST_SURFACE, false, nil, custom_falling_platform_loop, "bhvFallingBowserPlatform")
+
+hook_behavior(id_bhvFallingBowserPlatform, OBJ_LIST_SURFACE, false, nil, custom_falling_platform_loop,
+    "bhvFallingBowserPlatform")
 
 -- delete objects
 function set_spawn_potential(o)
     if not already_spawn[o] then
         table.insert(spawn_potential, { o.oPosX, o.oPosY + 160, o.oPosZ })
+        already_spawn[o] = 1
+    end
+    obj_mark_for_deletion(o)
+end
+
+function set_spawn_potential_priority(o)
+    if not already_spawn[o] then
+        table.insert(spawn_potential, 1, { o.oPosX, o.oPosY + 160, o.oPosZ })
         already_spawn[o] = 1
     end
     obj_mark_for_deletion(o)
@@ -846,6 +861,7 @@ local id_level_exception = {
     [id_bhvSTShell] = 1,
 }
 local id_delete = {
+    [id_bhvStar] = 2,
     [id_bhvBowserBomb] = 1,
     [id_bhvCannonBarrel] = 1,
     [id_bhvBlueCoinSwitch] = 1,
@@ -869,7 +885,7 @@ local id_delete = {
     [id_bhvRacingPenguin] = 1,
     [id_bhvSmallPenguin] = 1,
     [id_bhvWhompKingBoss] = 1,
-    [id_bhvCapSwitch] = 0,
+    [id_bhvCapSwitch] = 2,
     [id_bhv1Up] = 0,
     [id_bhv1upSliding] = 0,
     [id_bhvRecoveryHeart] = 0,
@@ -881,6 +897,8 @@ local id_delete = {
 for id, v in pairs(id_delete) do
     if v == 1 then
         hook_behavior(id, OBJ_LIST_DEFAULT, true, obj_mark_for_deletion, nil)
+    elseif v == 2 then
+        hook_behavior(id, OBJ_LIST_DEFAULT, true, set_spawn_potential_priority, nil)
     else
         hook_behavior(id, OBJ_LIST_DEFAULT, true, set_spawn_potential, nil)
     end
@@ -888,10 +906,7 @@ end
 --- @param o Object
 function delete_level(o)
     local id = get_id_from_behavior(o.behavior)
-    if id == id_bhvStar then
-        table.insert(spawn_potential, 1, { o.oPosX, o.oPosY, o.oPosZ })
-        obj_mark_for_deletion(o)
-    elseif id < id_bhv_max_count and ((get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL and (not id_level_exception[id]) and id ~= id_bhvShine)) then
+    if (id < id_bhv_max_count and get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL) and (not id_level_exception[id]) and id ~= id_bhvShine then
         obj_mark_for_deletion(o)
     end
 end

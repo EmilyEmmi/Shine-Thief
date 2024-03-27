@@ -94,7 +94,15 @@ ACT_ITEM_THROW_AIR = allocate_mario_action(ACT_FLAG_AIR | ACT_FLAG_ALLOW_VERTICA
 hook_mario_action(ACT_ITEM_THROW_AIR, act_item_throw_air)
 
 function act_cape_jump(m)
-    if (check_kick_or_dive_in_air(m) ~= 0) then
+    if using_omm_moveset(m.playerIndex) then
+        if m.controller.buttonPressed & B_BUTTON ~= 0 then
+            set_mario_action(m, ACT_JUMP_KICK, 0)
+            return true
+        elseif m.vel.y <= 0 and m.controller.buttonDown & Y_BUTTON ~= 0 then
+            set_mario_action(m, _G.OmmApi.ACT_OMM_SPIN_AIR, 0)
+            return true
+        end
+    elseif (check_kick_or_dive_in_air(m) ~= 0) then
         return true
     end
 
@@ -247,7 +255,9 @@ function act_shine_dance(m)
     elseif (m.actionTimer >= 110) then
         m.marioBodyState.handState = MARIO_HAND_PEACE_SIGN
         if m.playerIndex == 0 and m.actionTimer == 180 then
-            set_background_music(100, SEQ_LEVEL_INSIDE_CASTLE, 15)
+            if get_current_background_music() ~= 0 or gNetworkPlayers[0].currLevelNum < LEVEL_COUNT then -- assume that custom maps with no music have custom music
+                set_background_music(100, SEQ_LEVEL_INSIDE_CASTLE, 15)
+            end
             showGameResults = true
             inMenu = false
         end
@@ -274,7 +284,9 @@ function act_shine_lose(m)
     vec3f_copy(m.marioObj.header.gfx.pos, m.pos);
     vec3s_set(m.marioObj.header.gfx.angle, 0, m.faceAngle.y, 0)
     if m.playerIndex == 0 and m.actionTimer == 180 then
-        set_background_music(100, SEQ_LEVEL_INSIDE_CASTLE, 15)
+        if get_current_background_music() ~= 0 or gNetworkPlayers[0].currLevelNum < LEVEL_COUNT then -- assume that custom maps with no music have custom music
+            set_background_music(100, SEQ_LEVEL_INSIDE_CASTLE, 15)
+        end
         showGameResults = true
         inMenu = false
     end
@@ -329,7 +341,7 @@ function before_set_mario_action(m, action)
         return ACT_WATER_PUNCH
     elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                 -- transition from punch back into water shell
         return ACT_WATER_SHELL_SWIMMING
-    elseif action == ACT_DIVE and (not _G.OmmEnabled) and m.action ~= ACT_WALL_KICK_AIR and (m.intendedMag < 2 or limit_angle(m.intendedYaw - m.faceAngle.y) > 0x4000) then -- make kicking easier
+    elseif action == ACT_DIVE and (not using_omm_moveset(m.playerIndex)) and m.action ~= ACT_WALL_KICK_AIR and (m.intendedMag < 2 or limit_angle(m.intendedYaw - m.faceAngle.y) > 0x4000) then -- make kicking easier
         if m.action == ACT_WALKING then
             return ACT_MOVE_PUNCHING
         end

@@ -93,6 +93,7 @@ function add_obj_spot(msg)
     local model = E_MODEL_ERROR_MODEL
     local modelName = "E_MODEL_ERROR_MODEL"
     local id = 0
+    local plat = (objName == "plat")
     if not objName then
         djui_chat_message_create("No such object exists")
         return true
@@ -160,13 +161,17 @@ function add_obj_spot(msg)
         y = math.floor(m.floorHeight)
     elseif args[3] == "shine" and shine_spot[2] then
         x = shine_spot[1]
-        y = shine_spot[2] - 186
+        y = shine_spot[2] - 160
         z = shine_spot[3]
     elseif args[3] == "slope" then
         y = math.floor(m.floorHeight)
         pitch = math.floor((m.floor.normal.y - 1) * 0x8000)
     elseif tonumber(args[3]) then
         y = y + tonumber(args[3])
+    end
+
+    if plat and pitch == 0 then
+        y = y - 26
     end
 
     table.insert(obj_spots, {"id_"..(objName:gsub("id_","")), modelName, x, y, z, params1, params2, pitch, yaw})

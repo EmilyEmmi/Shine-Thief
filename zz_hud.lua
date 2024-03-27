@@ -17,6 +17,7 @@ local frameCounter = 0
 local tipNum = 0
 local doVoteCalc = true
 local votesNumber = { 0, 0, 0 }
+local voteScreenTimer = 0
 
 local menu_history = {}
 local variant_list = {
@@ -34,6 +35,8 @@ local tip_general = {
     "Tip: When you have only 3 seconds left, the timer slows down.",
     "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
     "Tip: A slide kick will instantly steal the Shine.",
+    "Tip: This mod has OMM Rebirth support!",
+    "Tip: Team mode can be set to random to randomly pick a number of teams or zero.",
     "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
     "Mod created by EmilyEmmi, with help from EmeraldLockdown and resources from others.",
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
@@ -42,6 +45,9 @@ local tip_general = {
     "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to pass the Shine.",
     "Tip: After 5 minutes, the shine timer will be halved.",
     "Tip: You can enter Spectator Mode in the menu.",
+    "Tip: Turn on God Mode to allow players to walk on lava and quicksand.",
+    "Tip: Variants can be set to Random to pick a random variant each game!",
+    "Tip: Ceiling climbing is a lot faster than in vanilla.",
 }
 local tip_variant = {
     "Tip: Two players must each hold a Shine to win.",
@@ -55,20 +61,33 @@ local tip_variant = {
 local tip_item = {
     "Tip: Using a Mushroom lets you move faster AND steal the Shine on any attack.",
     "Tip: You can throw items in front of you, behind you, or to the side with the D-PAD.",
-    "Tip: The Cape Feather can be used as a double jump or to steal the Shine.",
+    "Tip: The Feather can be used as a double jump or to steal the Shine.",
+    "Tip: You can dive, kick, or ground pound after using a feather.",
     "Tip: Red Shells can fly to hit players.",
+    "Tip: Red Shells will automatically target the player in front of them.",
     "Tip: The Boomerang can be thrown up to 3 times.",
+    "Tip: The Boomerang can hurt players on its return, too.",
     "Tip: The POW Block hits any players standing on the ground.",
     "Tip: The Super Star makes you invincible and lets you attack players just by touching them!",
+    "Tip: The Super Star does NOT make you faster.",
+    "Tip: Two players with a Super Star can hurt each other.",
+    "Tip: The Super Star lasts 10 seconds.",
     "Tip: Players falling behind will get better items.",
     "Tip: The Fire Flower can be used 5 times.",
-    "Tip: The Bullet Bill item turns you into a Bullet Bill for 5 seconds.",
+    "Tip: The Bullet Bill item turns you into an explosive Bullet Bill for 5 seconds.",
+    "Tip: The Bullet Bill can be canceled with the B button or by ground pounding.",
+    "Tip: You can launch the Bullet Bill in different directions with the D-PAD.",
     "Tip: Only certain items can be obtained while close to victory.",
+    "Tip: Some items have rarer, triple forms.",
+    "Tip: The Banana can be thrown a far distance if you hold UP un the D-PAD.",
+    "Tip: More powerful items will appear if Items are set to Frantic.",
+    "Tip: Less powerful items will appear if Items are set to Skilled.",
 }
 local SPECIAL_BUTTON_STRING = "Y"
 local ITEM_BUTTON_STRING = "X"
 if _G.OmmEnabled then
     tip_general[3] = "Tip: A slide kick or Cappy attack will instantly steal the Shine."
+    tip_general[4] = "Tip: After throwing Cappy, You can perform a homing attack by pressing the D-PAD."
     SPECIAL_BUTTON_STRING = "L"
     ITEM_BUTTON_STRING = "the D-PAD while holding R"
 end
@@ -143,7 +162,7 @@ local menu_data = {
             currNum = 0,
             minNum = 0,
             maxNum = 1,
-            nameRef = { "ON", "OFF" },
+            nameRef = { "On", "Off" },
         },
         { "Random", function()
             start_random_level()
@@ -154,8 +173,9 @@ local menu_data = {
         {
             "Map",
             function(x)
+                gGlobalSyncTable.mapChoice = x
+                save_setting("mapChoice", x)
                 if gGlobalSyncTable.gameState ~= 0 and gGlobalSyncTable.gameState ~= 3 then
-                    gGlobalSyncTable.mapChoice = x
                     return
                 end
 
@@ -166,7 +186,6 @@ local menu_data = {
                 else
                     gGlobalSyncTable.gameTimer = 330 -- 11 seconds
                 end
-                gGlobalSyncTable.mapChoice = x
             end,
             currNum = 0,
             minNum = 0,
@@ -174,10 +193,55 @@ local menu_data = {
             nameRef = { "Choose", "Vote", "Random" },
             runOnChange = true
         },
-        { "Variant",  function(x) menuVariant = x end,                     currNum = 0, minNum = -1, maxNum = #variant_list - 2, nameRef = variant_list,                              runOnChange = true },
-        { "Teams",    function(x) menuTeam = x end,                        currNum = 0, minNum = 0,  maxNum = 8,                 excludeNum = 1,                                      runOnChange = true },
-        { "Items",    function(x) gGlobalSyncTable.items = x end,          currNum = 1, minNum = 0,  maxNum = 3,                 nameRef = { "OFF", "NORMAL", "FRANTIC", "SKILLED" }, runOnChange = true },
-        { "God Mode", function(x) gGlobalSyncTable.godMode = (x == 1) end, currNum = 0, minNum = 0,  maxNum = 1,                 nameRef = { "OFF", "ON" },                           runOnChange = true },
+        {
+            "Variant",
+            function(x)
+                menuVariant = x
+                save_setting("variant", x)
+            end,
+            currNum = 0,
+            minNum = -1,
+            maxNum = #variant_list - 2,
+            nameRef = variant_list,
+            runOnChange = true
+        },
+        {
+            "Teams",
+            function(x)
+                menuTeam = x
+                save_setting("teamMode", x)
+            end,
+            currNum = 0,
+            minNum = -1,
+            maxNum = 8,
+            excludeNum = 1,
+            nameRef = { "Random" },
+            runOnChange = true
+        },
+        {
+            "Items",
+            function(x)
+                gGlobalSyncTable.items = x
+                save_setting("items", x)
+            end,
+            currNum = 1,
+            minNum = 0,
+            maxNum = 3,
+            nameRef = { "Off", "Normal", "Frantic", "Skilled" },
+            runOnChange = true
+        },
+        {
+            "God Mode",
+            function(x)
+                gGlobalSyncTable.godMode = (x == 1)
+                save_setting("godMode", (x == 1))
+            end,
+            currNum = 0,
+            minNum = 0,
+            maxNum = 1,
+            nameRef = { "Off", "On" },
+            runOnChange = true
+        },
     },
     [6] = {
         {
@@ -263,6 +327,9 @@ function on_hud_render()
 
     if gGlobalSyncTable.gameState ~= 3 then
         showGameResults = false
+        if gGlobalSyncTable.mapChoice == 1 then
+            voteScreenTimer = 210 -- 7 sec
+        end
     elseif showGameResults then
         djui_hud_set_font(FONT_NORMAL)
         local scale = 1
@@ -485,6 +552,14 @@ function on_hud_render()
             djui_hud_set_color(255, 255, 255, alpha)
             djui_hud_print_text_with_color(subText3, x, y, scale3, alpha)
         end
+        if gGlobalSyncTable.godMode then
+            text = "\\#ffff40\\God Mode"
+            local scale4 = 0.5
+            y = 0
+            x = 10
+            djui_hud_set_color(255, 255, 255, 255)
+            djui_hud_print_text_with_color(text, x, y, scale4, 255)
+        end
     end
 
     -- showtime!
@@ -581,6 +656,34 @@ function on_hud_render()
         end
     end
 
+    -- item preview
+    local item = gPlayerSyncTable[0].item or 0
+    if gGlobalSyncTable.gameState == 2 and (gGlobalSyncTable.items ~= 0 or item ~= 0) then
+        local scale = 2
+        local x = 10
+        local y = 10
+        djui_hud_set_color(255, 255, 255, 255)
+        djui_hud_set_font(FONT_HUD)
+        djui_hud_render_texture(get_texture_info("item_bg"), x, y, scale, scale)
+        djui_hud_render_texture(get_texture_info(string.format("item_preview_%02d", item)), x, y, scale, scale)
+        
+        local data = item_data[item]
+        if data and data.maxUses then
+            local uses = data.maxUses - gPlayerSyncTable[0].itemUses
+            
+            djui_hud_print_text("@"..uses, x+34*scale, y+45*scale, scale)
+        end
+
+        if item ~= 0 and (frameCounter % 30 <= 15) then
+            local text = "X"
+            if _G.OmmEnabled then
+                text = "R+"
+            end
+            local width = djui_hud_measure_text(text) * scale + 10
+            djui_hud_print_text(text, x+64*scale-width, y+10, scale)
+        end
+    end
+
     -- minimap
     if gGlobalSyncTable.gameState == 2 then
         local mapWidth = screenWidth // 4
@@ -593,13 +696,34 @@ function on_hud_render()
         -- first, determine the level size (expand if a player is beyond the bounds)
         for i = 0, MAX_PLAYERS - 1 do
             local m = gMarioStates[i]
-            if gPlayerSyncTable[i].spectator ~= 1 and is_player_active(m) ~= 0 and math.abs(m.pos.x) > levelSize or math.abs(m.pos.z) > levelSize then
+            if not (gPlayerSyncTable[i].spectator) and is_player_active(m) ~= 0 and math.abs(m.pos.x) > levelSize or math.abs(m.pos.z) > levelSize then
                 levelSize = math.max(math.abs(m.pos.x), math.abs(m.pos.z))
             end
         end
-        for i = 0, MAX_PLAYERS - 1 do
+
+        local shineList = {}
+        djui_hud_set_color(0, 0, 0, 100)
+        local mark = obj_get_first_with_behavior_id(id_bhvShineMarker)
+        while mark do
+            local renderX = clampf(mark.oPosX / (levelSize * 2) + 0.5, 0, 1) * mapWidth + x - 12
+            local renderY = clampf(mark.oPosZ / (levelSize * 2) + 0.5, 0, 1) * mapWidth + y - 12
+            djui_hud_render_texture(gTextures.star, math.floor(renderX), math.floor(renderY), 1.5, 1.5)
+            table.insert(shineList, mark.parentObj)
+            mark = obj_get_next_with_same_behavior_id(mark)
+        end
+
+        djui_hud_set_color(255, 255, 255, 255)
+        for i,shine in ipairs(shineList) do
+            if get_shine_owner(shine.oBehParams) == -1 then
+                local renderX = clampf(shine.oPosX / (levelSize * 2) + 0.5, 0, 1) * mapWidth + x - 20
+                local renderY = clampf(shine.oPosZ / (levelSize * 2) + 0.5, 0, 1) * mapWidth + y - 20
+                djui_hud_render_texture(TEX_SHINE, math.floor(renderX), math.floor(renderY), 2.5, 2.5)
+            end
+        end
+
+        for i = MAX_PLAYERS - 1, 0, -1 do -- go backwards so that our own player renders on top
             local m = gMarioStates[i]
-            if gPlayerSyncTable[i].spectator ~= 1 and is_player_active(m) ~= 0 then
+            if i == 0 or (not (gPlayerSyncTable[i].spectator) and is_player_active(m) ~= 0) then
                 local scale = (i == 0 and 2.5) or 2
                 local renderX = m.pos.x / (levelSize * 2) + 0.5
                 local renderY = m.pos.z / (levelSize * 2) + 0.5
@@ -607,20 +731,18 @@ function on_hud_render()
                 renderY = clampf(renderY, 0, 1) * mapWidth + y - 8 * scale
 
                 render_player_head(i, math.floor(renderX), math.floor(renderY), scale, scale)
+                local playercolor = network_get_player_text_color_string(i)
+                local r, g, b = convert_color(playercolor)
+                djui_hud_set_color(r, g, b, 155)
+                djui_hud_set_rotation(m.faceAngle.y, 0.5, 0.5)
+                djui_hud_render_texture(TEX_MAP_ARROW, renderX - 8 * scale, renderY - 8 * scale, scale, scale)
+                djui_hud_set_rotation(0, 0, 0)
+
                 if get_player_owned_shine(i) ~= 0 then
+                    djui_hud_set_color(255, 255, 255, 255)
                     djui_hud_render_texture(TEX_SHINE_SMALL, renderX, renderY - 15 * scale, scale, scale)
                 end
             end
-        end
-        local shine = obj_get_first_with_behavior_id(id_bhvShine)
-        while shine do
-            if get_shine_owner(shine.oBehParams) == -1 then
-                djui_hud_set_color(255, 255, 255, 255)
-                local renderX = clampf(shine.oPosX / (levelSize * 2) + 0.5, 0, 1) * mapWidth + x - 20
-                local renderY = clampf(shine.oPosZ / (levelSize * 2) + 0.5, 0, 1) * mapWidth + y - 20
-                djui_hud_render_texture(TEX_SHINE, math.floor(renderX), math.floor(renderY), 2.5, 2.5)
-            end
-            shine = obj_get_next_with_same_behavior_id(shine)
         end
     end
 end
@@ -899,8 +1021,8 @@ function render_menu()
                 end
             end
             if button.currNum then
-                if button.nameRef then
-                    local optionText = button.nameRef[button.currNum - button.minNum + 1] or "???"
+                if button.nameRef and button.nameRef[button.currNum - button.minNum + 1] then
+                    local optionText = button.nameRef[button.currNum - button.minNum + 1]
                     text = text .. "  < " .. remove_color(optionText) .. " >"
                 else
                     text = text .. "  < " .. button.currNum .. " >"
@@ -933,11 +1055,22 @@ r_press = false
 function menu_controls(m)
     if m.playerIndex ~= 0 then return end
 
-    if showGameResults and (network_is_server() or network_is_moderator() or gGlobalSyncTable.mapChoice == 1) and (m.controller.buttonPressed & A_BUTTON) ~= 0 and not inMenu then
-        enter_menu(2)
-        menu_history = {}
-        inMenu = true
-        return
+    if showGameResults then
+        local leave_game_results = (network_is_server() or network_is_moderator() or gGlobalSyncTable.mapChoice == 1) and
+            (m.controller.buttonPressed & A_BUTTON) ~= 0 and not inMenu
+        if voteScreenTimer > 0 and not leave_game_results then
+            voteScreenTimer = voteScreenTimer - 1
+            if voteScreenTimer == 0 and gGlobalSyncTable.mapChoice == 1 then
+                leave_game_results = true
+            end
+        end
+        if leave_game_results then
+            voteScreenTimer = 0
+            enter_menu(2)
+            menu_history = {}
+            inMenu = true
+            return
+        end
     elseif (m.controller.buttonPressed & START_BUTTON) ~= 0 then
         if not showGameResults then
             if gGlobalSyncTable.mapChoice == 1 and gGlobalSyncTable.gameState == 0 then
@@ -1093,7 +1226,19 @@ function get_menu_option(id, option)
 end
 
 function new_game_set_settings(msg)
-    gGlobalSyncTable.teamMode = menuTeam
+    if menuTeam ~= -1 then
+        gGlobalSyncTable.teamMode = menuTeam
+    elseif math.random(1, 2) == 1 then -- 50% chance of free for all
+        gGlobalSyncTable.teamMode = 0
+    else
+        local maxTeam = math.min(get_participant_count() // 2, 8) -- always have at least two people per team
+        if maxTeam > 1 then
+            gGlobalSyncTable.teamMode = math.random(2, maxTeam)
+        else
+            gGlobalSyncTable.teamMode = 0
+        end
+    end
+
     if menuVariant == 1 and (gGlobalSyncTable.teamMode == 2 or get_participant_count() < 3) then
         djui_popup_create("Not enough teams or players for Double Shine!", 2)
         gGlobalSyncTable.variant = 0
@@ -1113,6 +1258,7 @@ end
 TEX_SHINE = get_texture_info("shine_hud")
 TEX_SHINE_SMALL = get_texture_info("shine_hud_small")
 TEX_SHINE_CIRCLE = get_texture_info("shine_hud_circle")
+TEX_MAP_ARROW = get_texture_info("map-arrow")
 shine_radar = {}
 shine_radar[1] = { prevX = 0, prevY = 0, prevScale = 0 }
 shine_radar[2] = { prevX = 0, prevY = 0, prevScale = 0 }
@@ -1334,9 +1480,6 @@ function render_player_head(index, x, y, scaleX, scaleY)
         elseif TEX_CS_ICON == nil then
             djui_hud_set_font(FONT_HUD)
             djui_hud_print_text("?", x, y, scaleX)
-            if font then
-                djui_hud_set_font(font)
-            end
             return
         end
     end
@@ -1408,84 +1551,6 @@ function render_player_head(index, x, y, scaleX, scaleY)
     end
 end
 
-function render_player_head_interpolated(index, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY)
-    local m = gMarioStates[index]
-    local sMario = gPlayerSyncTable[index]
-    local np = gNetworkPlayers[index]
-
-    local alpha = 255
-    if (m.marioBodyState.modelState & MODEL_STATE_NOISE_ALPHA) ~= 0 then
-        alpha = 100 -- vanish effect
-    end
-    local isMetal = false
-
-    local tileY = m.character.type
-    for i = 1, #PART_ORDER do
-        local color = { r = 255, g = 255, b = 255 }
-        if sMario.team and TEAM_COLORS[sMario.team] then
-            if (m.marioBodyState.modelState & MODEL_STATE_METAL) ~= 0 then -- metal
-                color = TEAM_COLORS[sMario.team]
-                djui_hud_set_color(color.r, color.g, color.b, alpha)
-                djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX,
-                    scaleY, 5 * 16, tileY * 16, 16, 16)
-                isMetal = true
-
-                djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX,
-                    scaleY, 5 * 16, tileY * 16, 16, 16)
-                break
-            end
-
-            if i == 1 then         -- same skin color
-                color = { r = 0xfe, g = 0xc1, b = 0x79 }
-            elseif i == 2 then     -- same hair color
-                if tileY == 2 then -- toad's mushroom is always white
-                    color = { r = 255, g = 255, b = 255 }
-                else
-                    color = { r = 0x73, g = 6, b = 0 }
-                end
-            else
-                color = TEAM_COLORS[sMario.team]
-            end
-        else
-            if (m.marioBodyState.modelState & MODEL_STATE_METAL) ~= 0 then -- metal
-                color = network_player_palette_to_color(np, METAL, color)
-                djui_hud_set_color(color.r, color.g, color.b, alpha)
-                djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX,
-                    scaleY, 5 * 16, tileY * 16, 16, 16)
-                isMetal = true
-
-                break
-            end
-
-            local part = PART_ORDER[i]
-            if tileY == 2 and part == HAIR then -- toad doesn't use hair
-                part = GLOVES
-            end
-            network_player_palette_to_color(np, part, color)
-        end
-
-        djui_hud_set_color(color.r, color.g, color.b, alpha)
-        djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY,
-            (i - 1) * 16, tileY * 16, 16, 16)
-    end
-
-    if not isMetal then
-        djui_hud_set_color(255, 255, 255, alpha)
-        --djui_hud_render_texture(HEAD_HUD, x, y, scaleX, scaleY)
-        djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY,
-            (#PART_ORDER) * 16, tileY * 16, 16, 16)
-
-        djui_hud_render_texture_tile_interpolated(HEAD_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY,
-            (#PART_ORDER + 1) * 16, tileY * 16, 16, 16)                                                                -- hat emblem
-        if m.marioBodyState.capState == MARIO_HAS_WING_CAP_ON then
-            djui_hud_render_texture_interpolated(WING_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY) -- wing
-        end
-    elseif m.marioBodyState.capState == MARIO_HAS_WING_CAP_ON then
-        djui_hud_set_color(109, 170, 173, alpha)                                                                   -- blueish green
-        djui_hud_render_texture_interpolated(WING_HUD, prevX, prevY, prevScaleX, prevScaleY, x, y, scaleX, scaleY) -- wing
-    end
-end
-
 -- arena map support
 local addedMcDonalds = false
 _G.Arena = {}
@@ -1535,16 +1600,28 @@ function menu_update_for_romhack(levels)
 end
 
 -- set menu settings when starting a new game
-function menu_set_settings()
+function menu_set_settings(load)
     doVoteCalc = true
-    menuTeam = gGlobalSyncTable.teamMode
-    if menuVariant ~= -1 then
-        menuVariant = gGlobalSyncTable.variant
+    if load then
+        menuTeam = load_setting("teamMode") or 0
+        menuVariant = load_setting("variant") or 0
+        gGlobalSyncTable.mapChoice = load_setting("mapChoice") or 0
+        gGlobalSyncTable.items = load_setting("items") or 1
+        gGlobalSyncTable.godMode = load_setting("godMode", true) or false
+    else
+        if menuTeam ~= -1 then
+            menuTeam = gGlobalSyncTable.teamMode
+        end
+
+        if menuVariant ~= -1 then
+            menuVariant = gGlobalSyncTable.variant
+        end
     end
     set_menu_option(5, 1, gGlobalSyncTable.mapChoice)
     set_menu_option(5, 2, menuVariant)
     set_menu_option(5, 3, menuTeam)
     set_menu_option(5, 4, gGlobalSyncTable.items)
+    set_menu_option(5, 5, (gGlobalSyncTable.godMode and 1) or 0)
 end
 
 -- converts text to sm64 style abbreviation (ex: Bowser In The Sky becomes BitS)

@@ -1,6 +1,5 @@
--- name: \\#ffff40\\Shine Thief (v2.0 WIP)
--- description: Stealing mods is a bannable offense.
--- description_actual: Shine Thief from Mario Kart: Double Dash and Mario Kart 8 Deluxe, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nAdditional network programming EmeraldLockdown\n\nShine Dynos by Blocky\n\nSome graphics/sounds created/provided by NeedleN64, viandegras, (\n\nMcDonalds by chillyzone\nArena by Agent X
+-- name: \\#ffff40\\Shine Thief (v2.0)
+-- description: Shine Thief from Mario Kart: Double Dash and Mario Kart 8 Deluxe, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nAdditional programming by EmeraldLockdown and NeedleN64\n\nShine Dynos by Blocky\n\nSome graphics, models, and sounds created/provided by NeedleN64, viandegras, and djoslin0\n\nMcDonalds by chillyzone\nArena by Agent X + others
 -- incompatible: gamemode
 
 gGlobalSyncTable.gameLevel = 0
@@ -54,6 +53,7 @@ localWinner2 = -1
 specialDown = false
 specialPressed = false
 renderItemExists = {}
+torsoTime = gMarioStates[0].marioBodyState.updateTorsoTime
 
 -- team colors (first is palette, second is table for HUD color)
 TEAM_PALETTE = {
@@ -168,7 +168,7 @@ function before_phys_step(m, stepType)
     local speed_cap = 40
 
     if (m.action & ACT_FLAG_SWIMMING) ~= 0 then speed_cap = 20 end
-    if _G.OmmEnabled then speed_cap = speed_cap + 10 end                           -- speed cap is greater for OMM
+    if using_omm_moveset(m.playerIndex) then speed_cap = speed_cap + 10 end        -- speed cap is greater for OMM
     if (m.action & ACT_FLAG_RIDING_SHELL) ~= 0 then speed_cap = speed_cap + 10 end -- other players can travel at >60 speed
 
     -- boost variant
@@ -321,6 +321,8 @@ function mario_update(m)
 
     -- for underground lake and wiggler's cave
     if m.playerIndex == 0 and thisLevel then
+        torsoTime = math.max(gMarioStates[0].marioBodyState.updateTorsoTime, torsoTime + 1)
+
         if thisLevel.room and m.currentRoom ~= 0 and m.currentRoom ~= thisLevel.room then
             print("Room mismatch", m.currentRoom, thisLevel.room)
             on_death(m)
@@ -331,7 +333,7 @@ function mario_update(m)
     end
 
     -- prevent instant death upon spawning
-    if m.action == ACT_SPAWN_SPIN_AIRBORNE and m.floor and is_hazard_floor(m.floor.type) then
+    if m.action == ACT_SPAWN_SPIN_AIRBORNE and m.floor and (is_hazard_floor(m.floor.type) or mario_floor_is_steep(m) ~= 0) then
         if gGlobalSyncTable.gameState == 1 then
             m.vel.y = 0
         else
@@ -491,30 +493,33 @@ function mario_update(m)
     end
 
     -- bullet bill
-    if m.playerIndex == 0 and sMario.bulletTimer and sMario.bulletTimer > 0 then
-        sMario.bulletTimer = sMario.bulletTimer - 1
+    if sMario.bulletTimer and sMario.bulletTimer > 0 then
         m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags | GRAPH_RENDER_INVISIBLE
-        if m.action & ACT_FLAG_SWIMMING ~= 0 or m.action & ACT_FLAG_SWIMMING_OR_FLYING == 0 then
-            m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags & ~GRAPH_RENDER_INVISIBLE
-            m.flags = m.flags & ~MARIO_WING_CAP
-            sMario.bulletTimer = 0
-            local o = spawn_sync_object(id_bhvThrownBobomb,
-                E_MODEL_NONE,
-                m.pos.x, m.pos.y, m.pos.z,
-                function(o)
-                    o.oForwardVel = 0
-                    o.oVelY = -20
-                    o.oObjectOwner = np.globalIndex
-                end)
-            if o then
-                o.oInteractStatus = INT_STATUS_INTERACTED
-            end
-        elseif sMario.bulletTimer == 0 then
-            m.marioObj.header.gfx.node.flags = m.marioObj.header.gfx.node.flags & ~GRAPH_RENDER_INVISIBLE
-            if gGlobalSyncTable.variant ~= 2 and gGlobalSyncTable.variant ~= 7 then
+        if m.playerIndex == 0 then
+            sMario.bulletTimer = sMario.bulletTimer - 1
+
+            if m.action & ACT_FLAG_SWIMMING ~= 0 or m.action & ACT_FLAG_SWIMMING_OR_FLYING == 0 then
                 m.flags = m.flags & ~MARIO_WING_CAP
-                set_mario_action(m, ACT_FREEFALL, 0)
-                set_camera_mode(m.area.camera, m.area.camera.defMode, 0)
+                sMario.bulletTimer = 0
+            elseif m.controller.buttonPressed & B_BUTTON ~= 0 then
+                sMario.bulletTimer = 0
+            end
+
+            if sMario.bulletTimer == 0 then
+                local o = spawn_sync_object(id_bhvThrownBobomb,
+                    E_MODEL_NONE,
+                    m.pos.x, m.pos.y, m.pos.z,
+                    function(o)
+                        o.oForwardVel = 0
+                        o.oVelY = -20
+                        o.oObjectOwner = np.globalIndex
+                    end)
+                if o then
+                    o.oInteractStatus = INT_STATUS_ATTACKED_MARIO
+                end
+                if gGlobalSyncTable.variant ~= 2 and gGlobalSyncTable.variant ~= 7 then
+                    m.flags = m.flags & ~MARIO_WING_CAP
+                end
             end
         end
     end
@@ -544,7 +549,7 @@ function mario_update(m)
     if m.riddenObj and m.riddenObj.heldByPlayerIndex ~= m.playerIndex then
         m.riddenObj.heldByPlayerIndex = m.playerIndex
     end
-    if gGlobalSyncTable.variant == 3 and gGlobalSyncTable.gameState ~= 3 and special_pressed(m) and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and not m.heldObj then
+    if gGlobalSyncTable.variant == 3 and gGlobalSyncTable.gameState ~= 3 and special_pressed(m) and m.action & ACT_GROUP_CUTSCENE == 0 and not m.heldObj then
         shell_rush_shell(m)
     end
     if m.playerIndex == 0 and m.action == ACT_RIDING_SHELL_GROUND and m.floor and m.floor.type == SURFACE_BURNING and thisLevel.badLava then
@@ -658,6 +663,8 @@ function mario_update(m)
                     gGlobalSyncTable.gameTimer = 0
                     gGlobalSyncTable.gameState = 2
                 end
+            elseif gGlobalSyncTable.gameTimer == 0 and m.marioObj.oTimer > 30 then -- fix desync
+                gGlobalSyncTable.gameState = 2
             end
         elseif gGlobalSyncTable.gameState == 2 and m.playerIndex == 0 and network_is_server() then
             if showTimeTimer < 9000 then
@@ -824,13 +831,13 @@ end
 
 -- starts a random level, which is either from the supported list or any random level if "custom" was used
 function start_random_level(list)
-    if list then
+    if list and #levelData > 0 then
         new_game_set_settings(math.random(1, #levelData))
         return
     end
 
     local LIMIT = 0
-    local dry = (get_menu_option(4, 3) == 1)
+    local dry = get_menu_option(4, 3)
     while LIMIT < 1000 do
         local level = course_to_level[math.random(0, #course_to_level)]
         local area = math.random(1, 7)
@@ -864,7 +871,7 @@ function vote_pick_random_levels(list)
     end
 
     LIMIT = 0
-    local dry = (get_menu_option(4, 3) == 1)
+    local dry = get_menu_option(4, 3)
     while LIMIT < 1000 and chosen < 3 do
         local level = course_to_level[math.random(0, #course_to_level)]
         local area = math.random(1, 7)
@@ -878,9 +885,9 @@ function vote_pick_random_levels(list)
         LIMIT = LIMIT + 1
     end
 
-    gGlobalSyncTable.voteMap1 = maps[1] or gGlobalSyncTable.voteMap1
-    gGlobalSyncTable.voteMap2 = maps[2] or gGlobalSyncTable.voteMap2
-    gGlobalSyncTable.voteMap3 = maps[3] or gGlobalSyncTable.voteMap3
+    gGlobalSyncTable.voteMap1 = maps[1] or "9 1"
+    gGlobalSyncTable.voteMap2 = maps[2] or "24 1"
+    gGlobalSyncTable.voteMap3 = maps[3] or "5 1"
 end
 
 -- prevent team attack
@@ -1052,14 +1059,8 @@ end
 function throw_direction(dPadOnly)
     local m = gMarioStates[0]
     if not dPadOnly then
-        if not _G.OmmEnabled then
-            if m.controller.buttonPressed & ITEM_BUTTON == 0 then
-                return 4
-            end
-        else
-            if m.controller.buttonDown & R_TRIG == 0 then
-                return 4
-            end
+        if m.controller.buttonPressed & ITEM_BUTTON == 0 or (_G.OmmEnabled and m.controller.buttonDown & R_TRIG == 0) then
+            return 4
         end
     end
 
@@ -1088,6 +1089,41 @@ function throw_direction(dPadOnly)
     return 5
 end
 
+-- loads settings if host
+function load_setting(setting, bool)
+    if not network_is_server() then return end
+    local result = mod_storage_load(setting)
+    if bool then
+        return (result == "1")
+    else
+        result = tonumber(result)
+        if result and math.floor(result) == result and result < 100 then
+            return result
+        end
+    end
+end
+
+-- saves settings if host
+function save_setting(setting, value)
+    if not network_is_server() then return end
+    if type(value) == "boolean" then
+        mod_storage_save(setting, (value and "1") or "0")
+    else
+        if value and math.floor(value) == value and value < 100 then
+            mod_storage_save(setting, tostring(value))
+        end
+    end
+end
+
+-- check if OMM moveset is on
+function using_omm_moveset(index)
+    if not _G.OmmEnabled then return false end
+    if _G.OmmApi.omm_get_setting(gMarioStates[index], "moveset") ~= 0 then
+        return true
+    end
+    return false
+end
+
 -- no!!!! no dialog!!!!
 function on_dialog(id)
     return false
@@ -1110,8 +1146,6 @@ function on_sync_valid()
         renderItemExists = {}
         setup_level_data(gGlobalSyncTable.gameLevel)
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
-    elseif isRomHack then
-        setup_level_data(tostring(gLevelValues.entryLevel))
     else
         setup_level_data(LOBBY_LEVEL)
     end
@@ -1138,7 +1172,7 @@ function on_sync_valid()
 
         sMario.team = calculate_lowest_member_team()
         if _G.OmmEnabled then
-            _G.OmmApi.omm_force_setting("player", PLAYER_INTERACTIONS_SOLID)
+            _G.OmmApi.omm_force_setting("player", PLAYER_INTERACTIONS_PVP)
             _G.OmmApi.omm_force_setting("color", 0)
             _G.OmmApi.omm_force_setting("powerups", 0)
             _G.OmmApi.omm_force_setting("stars", 0)
@@ -1165,12 +1199,31 @@ function on_sync_valid()
             end
         end
 
+        if isRomHack then
+            setup_level_data(tostring(gLevelValues.entryLevel))
+        end
+
         localWinner = gGlobalSyncTable.winner or -1
         localWinner2 = gGlobalSyncTable.winner2 or -1
 
         if network_is_server() then
+            vote_pick_random_levels(true)
+            menu_set_settings(true)
+
+            if gGlobalSyncTable.mapChoice == 0 then
+                gGlobalSyncTable.gameTimer = 0
+            elseif gGlobalSyncTable.mapChoice == 1 then
+                gGlobalSyncTable.gameTimer = 630 -- 21 seconds
+            else
+                gGlobalSyncTable.gameTimer = 330 -- 11 seconds
+            end
+
             inMenu = true
-            enter_menu(3, 1, true)
+            if gGlobalSyncTable.mapChoice == 1 then
+                enter_menu(6, 1, true)
+            else
+                enter_menu(3, 1, true)
+            end
         end
 
         didFirstJoinStuff = true
@@ -1211,125 +1264,121 @@ function spawn_objects_at_start()
     sync_valid = sync_valid - 1
     if sync_valid ~= 0 then return end
 
-    if true then
-        local loadingLevel = false
-        if network_is_server() then
-            local shine = obj_get_first_with_behavior_id(id_bhvShine)
-            if not shine then
-                loadingLevel = true
-                local m = gMarioStates[0]
-                local pos = { m.pos.x, m.floorHeight + 161, m.pos.z + 500 }
-                if m.floor and is_hazard_floor(m.floor.type) then
-                    pos[2] = m.pos.y
+    if network_is_server() then
+        local shine = obj_get_first_with_behavior_id(id_bhvShine)
+        if not shine then
+            local m = gMarioStates[0]
+            local pos = { m.pos.x, m.floorHeight + 161, m.pos.z + 500 }
+            if m.floor and is_hazard_floor(m.floor.type) then
+                pos[2] = m.pos.y
+            end
+            local needPlat = false
+            local programmedStart = false
+            if thisLevel.shineStart then
+                programmedStart = true
+                pos = thisLevel.shineStart
+            elseif #spawn_potential > 0 then
+                pos = spawn_potential[1]
+            else
+                local actor = obj_get_first(OBJ_LIST_GENACTOR)
+                if actor then
+                    pos = { actor.oPosX, actor.oPosY + 160, actor.oPosZ }
+                    needPlat = true
                 end
-                local needPlat = false
-                local programmedStart = false
-                if thisLevel.shineStart then
-                    programmedStart = true
-                    pos = thisLevel.shineStart
-                elseif #spawn_potential > 0 then
-                    pos = spawn_potential[1]
-                else
-                    local actor = obj_get_first(OBJ_LIST_GENACTOR)
-                    if actor then
-                        pos = { actor.oPosX, actor.oPosY + 160, actor.oPosZ }
-                        needPlat = true
-                    end
-                end
-                --djui_popup_create("spawned shine",1)
+            end
+            --djui_popup_create("spawned shine",1)
 
-                if gGlobalSyncTable.variant ~= 1 then
-                    shine = spawn_sync_object(
-                        id_bhvShine,
-                        E_MODEL_SHINE,
-                        pos[1], pos[2], pos[3],
-                        function(o)
-                            o.oBehParams = 0x1
-                        end
-                    )
-                    local mark = spawn_sync_object(
-                        id_bhvShineMarker,
-                        E_MODEL_TRANSPARENT_STAR,
-                        pos[1], pos[2] - 120, pos[3],
-                        nil
-                    )
-                    if mark then
-                        mark.parentObj = shine
+            if gGlobalSyncTable.variant ~= 1 then
+                shine = spawn_sync_object(
+                    id_bhvShine,
+                    E_MODEL_SHINE,
+                    pos[1], pos[2], pos[3],
+                    function(o)
+                        o.oBehParams = 0x1
                     end
-                else
-                    shine = spawn_sync_object(
-                        id_bhvShine,
-                        E_MODEL_SHINE,
-                        pos[1] - 100, pos[2], pos[3],
-                        function(o)
-                            o.oBehParams = 0x1
-                        end
-                    )
-                    local mark = spawn_sync_object(
-                        id_bhvShineMarker,
-                        E_MODEL_TRANSPARENT_STAR,
-                        pos[1], pos[2] - 120, pos[3],
-                        nil
-                    )
-                    if mark then
-                        mark.parentObj = shine
-                    end
-                    shine = spawn_sync_object(
-                        id_bhvShine,
-                        E_MODEL_SHINE,
-                        pos[1] + 100, pos[2], pos[3],
-                        function(o)
-                            o.oBehParams = 0x2
-                        end
-                    )
-                    mark = spawn_sync_object(
-                        id_bhvShineMarker,
-                        E_MODEL_TRANSPARENT_STAR,
-                        pos[1], pos[2] - 120, pos[3],
-                        nil
-                    )
-                    if mark then
-                        mark.parentObj = shine
-                    end
+                )
+                local mark = spawn_sync_object(
+                    id_bhvShineMarker,
+                    E_MODEL_TRANSPARENT_STAR,
+                    pos[1], pos[2] - 120, pos[3],
+                    nil
+                )
+                if mark then
+                    mark.parentObj = shine
                 end
-
-                if needPlat then
-                    spawn_sync_object(
-                        id_bhvStaticCheckeredPlatform,
-                        E_MODEL_CHECKERBOARD_PLATFORM,
-                        pos[1], pos[2] - 186, pos[3],
-                        nil
-                    )
+            else
+                shine = spawn_sync_object(
+                    id_bhvShine,
+                    E_MODEL_SHINE,
+                    pos[1] - 100, pos[2], pos[3],
+                    function(o)
+                        o.oBehParams = 0x1
+                    end
+                )
+                local mark = spawn_sync_object(
+                    id_bhvShineMarker,
+                    E_MODEL_TRANSPARENT_STAR,
+                    pos[1], pos[2] - 120, pos[3],
+                    nil
+                )
+                if mark then
+                    mark.parentObj = shine
                 end
+                shine = spawn_sync_object(
+                    id_bhvShine,
+                    E_MODEL_SHINE,
+                    pos[1] + 100, pos[2], pos[3],
+                    function(o)
+                        o.oBehParams = 0x2
+                    end
+                )
+                mark = spawn_sync_object(
+                    id_bhvShineMarker,
+                    E_MODEL_TRANSPARENT_STAR,
+                    pos[1], pos[2] - 120, pos[3],
+                    nil
+                )
+                if mark then
+                    mark.parentObj = shine
+                end
+            end
 
-                if thisLevel.itemBoxLocations and gGlobalSyncTable.items ~= 0 then
-                    for i, pos in ipairs(thisLevel.itemBoxLocations) do
+            if needPlat then
+                spawn_sync_object(
+                    id_bhvStaticCheckeredPlatform,
+                    E_MODEL_CHECKERBOARD_PLATFORM,
+                    pos[1], pos[2] - 186, pos[3],
+                    nil
+                )
+            end
+
+            if thisLevel.itemBoxLocations and gGlobalSyncTable.items ~= 0 then
+                for i, pos in ipairs(thisLevel.itemBoxLocations) do
+                    spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
+                end
+            elseif #spawn_potential > 0 and gGlobalSyncTable.items ~= 0 then
+                for i, pos in ipairs(spawn_potential) do
+                    if i ~= 1 or programmedStart then
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
-                    end
-                elseif #spawn_potential > 0 and gGlobalSyncTable.items ~= 0 then
-                    for i, pos in ipairs(spawn_potential) do
-                        if i ~= 1 or programmedStart then
-                            spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
-                        end
                     end
                 end
             end
         end
+    end
 
-        if thisLevel.objLocations then
-            for i, v in ipairs(thisLevel.objLocations) do
-                spawn_non_sync_object(
-                    v[1],
-                    v[2],
-                    v[3], v[4], v[5],
-                    function(o)
-                        o.oBehParams = v[6] or 0
-                        o.oBehParams2ndByte = v[7] or 0
-                        o.oFaceAnglePitch = v[8] or 0
-                        o.oFaceAngleYaw = v[9] or 0
-                    end
-                )
-            end
+    if thisLevel.objLocations then
+        for i, v in ipairs(thisLevel.objLocations) do
+            spawn_non_sync_object(
+                v[1],
+                v[2],
+                v[3], v[4], v[5],
+                function(o)
+                    o.oBehParams = v[6] or 0
+                    o.oBehParams2ndByte = v[7] or 0
+                    o.oFaceAnglePitch = v[8] or 0
+                    o.oFaceAngleYaw = v[9] or 0
+                end
+            )
         end
     end
 end
@@ -1366,7 +1415,9 @@ function on_packet_victory(data, self)
     end
     drop_queued_background_music()
     fadeout_level_music(1)
-    audio_stream_play(MUSIC_SHINE_GET, false, 1)
+    if get_current_background_music() ~= 0 or gNetworkPlayers[0].currLevelNum < LEVEL_COUNT then -- assume that custom maps with no music have custom music
+        audio_stream_play(MUSIC_SHINE_GET, false, 1)
+    end
     set_dance_action()
 end
 
@@ -1495,8 +1546,10 @@ end
 
 function on_packet_showtime(data, self)
     gGlobalSyncTable.showTime = true
-    showTimeDispTimer = 90 -- 3 seconds
-    set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
+    showTimeDispTimer = 90                                                                       -- 3 seconds
+    if get_current_background_music() ~= 0 or gNetworkPlayers[0].currLevelNum < LEVEL_COUNT then -- assume that custom maps with no music have custom music
+        set_background_music(0, SEQ_LEVEL_KOOPA_ROAD, 120)
+    end
 end
 
 function on_packet_pow_block(data, self)
