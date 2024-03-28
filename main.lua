@@ -42,11 +42,13 @@ MUSIC_SHINE_GET = audio_stream_load("shine.mp3")
 SOUND_SHINE_GRAB = audio_sample_load("grab.mp3")
 
 local cappyStealer = 0
+local modAttacker = 0
 
+altAbilityButtons = _G.OmmEnabled or false
 local shineFrameCounter = 0
 local showTimeTimer = 0
-SPECIAL_BUTTON = (_G.OmmEnabled and L_TRIG) or Y_BUTTON
-ITEM_BUTTON = (_G.OmmEnabled and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
+SPECIAL_BUTTON = (altAbilityButtons and L_TRIG) or Y_BUTTON
+ITEM_BUTTON = (altAbilityButtons and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
 isRomHack = false
 localWinner = 0
 localWinner2 = -1
@@ -308,9 +310,12 @@ function mario_update(m)
 
     -- drop the shine if we take damage
     if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP
-            or m.hurtCounter > 0 or cappyStealer ~= 0)
+            or m.hurtCounter > 0 or cappyStealer ~= 0 or modAttacker ~= 0)
         and ownedShine ~= 0 and m.playerIndex == 0 then
-        if cappyStealer == 0 then
+        if modAttacker ~= 0 then
+            drop_shine(0, 0, modAttacker)
+            modAttacker = 0
+        elseif cappyStealer == 0 then
             drop_shine(0, 0)
         else
             drop_shine(0, 3, cappyStealer)
@@ -903,6 +908,14 @@ end
 hook_event(HOOK_ALLOW_PVP_ATTACK, allow_pvp_attack)
 
 -- steal shine directly for some attacks
+local steal_actions = {
+    [ACT_SLIDE_KICK] = 1,
+    [ACT_SLIDE_KICK_SLIDE] = 1,
+    [ACT_SLIDE_KICK_SLIDE_STOP] = 1,
+    [ACT_CAPE_JUMP] = 1,
+    [ACT_CAPE_JUMP_SHELL] = 1,
+}
+
 --- @param attacker MarioState
 --- @param victim MarioState
 function on_pvp_attack(attacker, victim, cappyAttack, item)
@@ -913,8 +926,7 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
         local sAttacker = gPlayerSyncTable[attacker.playerIndex]
 
         if not item and ((sAttacker.star and not sVictim.star) or (sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0)
-                or attacker.action == ACT_SLIDE_KICK or attacker.action == ACT_SLIDE_KICK_SLIDE or attacker.action == ACT_SLIDE_KICK_SLIDE_STOP
-                or attacker.action == ACT_CAPE_JUMP or attacker.action == ACT_CAPE_JUMP_SHELL or cappyAttack) then
+                or steal_actions[attacker.action] or cappyAttack) then
             if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
                 if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
                     cappyStealer = attacker.playerIndex
@@ -931,6 +943,11 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
 end
 
 hook_event(HOOK_ON_PVP_ATTACK, on_pvp_attack)
+
+-- api
+function add_steal_attack(action)
+    steal_actions[action] = 1
+end
 
 -- omm support
 function omm_allow_attack(index, setting)
@@ -1059,28 +1076,28 @@ end
 function throw_direction(dPadOnly)
     local m = gMarioStates[0]
     if not dPadOnly then
-        if m.controller.buttonPressed & ITEM_BUTTON == 0 or (_G.OmmEnabled and m.controller.buttonDown & R_TRIG == 0) then
+        if m.controller.buttonPressed & ITEM_BUTTON == 0 or (altAbilityButtons and m.controller.buttonDown & R_TRIG == 0) then
             return 4
         end
     end
 
     if m.controller.buttonDown & U_JPAD ~= 0 then
-        if _G.OmmEnabled then
+        if altAbilityButtons then
             r_press = false
         end
         return 1
     elseif m.controller.buttonDown & D_JPAD ~= 0 then
-        if _G.OmmEnabled then
+        if altAbilityButtons then
             r_press = false
         end
         return 3
     elseif m.controller.buttonDown & R_JPAD ~= 0 then
-        if _G.OmmEnabled then
+        if altAbilityButtons then
             r_press = false
         end
         return 0
     elseif m.controller.buttonDown & L_JPAD ~= 0 then
-        if _G.OmmEnabled then
+        if altAbilityButtons then
             r_press = false
         end
         return 2

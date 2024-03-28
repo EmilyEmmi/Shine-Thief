@@ -73,7 +73,15 @@ ACT_ITEM_THROW_GROUND = allocate_mario_action(ACT_FLAG_MOVING | ACT_FLAG_ALLOW_F
 hook_mario_action(ACT_ITEM_THROW_GROUND, act_item_throw_ground)
 
 function act_item_throw_air(m)
-    if (check_kick_or_dive_in_air(m) ~= 0) then
+    if using_omm_moveset(m.playerIndex) then
+        if m.controller.buttonPressed & B_BUTTON ~= 0 then
+            set_mario_action(m, ACT_JUMP_KICK, 0)
+            return true
+        elseif m.vel.y <= 0 and m.controller.buttonDown & Y_BUTTON ~= 0 then
+            set_mario_action(m, _G.OmmApi.ACT_OMM_SPIN_AIR, 0)
+            return true
+        end
+    elseif (check_kick_or_dive_in_air(m) ~= 0) then
         return true
     end
 
@@ -337,9 +345,9 @@ function before_set_mario_action(m, action)
             on_death(m)
         end
         return 1
-    elseif action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                          -- transition into punch from water shell
+    elseif action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                                             -- transition into punch from water shell
         return ACT_WATER_PUNCH
-    elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                 -- transition from punch back into water shell
+    elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                                    -- transition from punch back into water shell
         return ACT_WATER_SHELL_SWIMMING
     elseif action == ACT_DIVE and (not using_omm_moveset(m.playerIndex)) and m.action ~= ACT_WALL_KICK_AIR and (m.intendedMag < 2 or limit_angle(m.intendedYaw - m.faceAngle.y) > 0x4000) then -- make kicking easier
         if m.action == ACT_WALKING then

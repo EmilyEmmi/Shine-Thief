@@ -676,7 +676,7 @@ function on_hud_render()
 
         if item ~= 0 and (frameCounter % 30 <= 15) then
             local text = "X"
-            if _G.OmmEnabled then
+            if altAbilityButtons then
                 text = "R+"
             end
             local width = djui_hud_measure_text(text) * scale + 10
@@ -1605,6 +1605,7 @@ function menu_set_settings(load)
     if load then
         menuTeam = load_setting("teamMode") or 0
         menuVariant = load_setting("variant") or 0
+        if menuVariant > (#variant_list - 2) then menuVariant = 0 end
         gGlobalSyncTable.mapChoice = load_setting("mapChoice") or 0
         gGlobalSyncTable.items = load_setting("items") or 1
         gGlobalSyncTable.godMode = load_setting("godMode", true) or false
@@ -1638,4 +1639,22 @@ function convert_to_abbreviation(text)
         start, send = string.find(text, "%a+", send + 1)
     end
     return ab
+end
+
+-- for api
+function add_variant(name, tip_)
+    local tip = tip_ or ""
+    table.insert(variant_list, name)
+    table.insert(tip_variant, tip)
+    menu_data[5][2].maxNum = (#variant_list - 2)
+    return (#variant_list - 2)
+end
+function set_alt_ability_strings(set)
+    if set then
+        SPECIAL_BUTTON_STRING = "L"
+        ITEM_BUTTON_STRING = "the D-PAD while holding R"
+    else
+        SPECIAL_BUTTON_STRING = "Y"
+        ITEM_BUTTON_STRING = "X"
+    end
 end
