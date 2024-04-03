@@ -10,11 +10,12 @@ local stickCooldownX = 0
 local stickCooldownY = 0
 local menuTeam = 0
 local menuVariant = 0
+local menuGameMode = 0
 
 local prevTimerNum = {}
 local localGameTimer = 0
 local frameCounter = 0
-local tipNum = 0
+local currTip
 local doVoteCalc = true
 local votesNumber = { 0, 0, 0 }
 local voteScreenTimer = 0
@@ -23,7 +24,7 @@ local menu_history = {}
 local variant_list = {
     "Random",
     "None",
-    "\\#ff9040\\Double Shine",
+    "VARIANT_SPECIAL", -- special case
     "\\#f7b5b5\\Air Battle",
     "\\#4e8f3b\\Shell Rush",
     "\\#5100ff\\Moon Gravity",
@@ -31,26 +32,49 @@ local variant_list = {
     "\\#b0aca9\\Bombs!!!",
     "\\#9000ff\\Air + Boost",
 }
+local variant_special_list = {
+    "Mode-Specific",
+    "\\#ff9040\\Double Shine", 
+    "\\#ff00ea\\Blowout",
+    "\\#ff00ea\\Blowout",
+}
+
 local tip_general = {
-    "Tip: When you have only 3 seconds left, the timer slows down.",
-    "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
-    "Tip: A slide kick will instantly steal the Shine.",
     "Tip: This mod has OMM Rebirth support!",
     "Tip: Team mode can be set to random to randomly pick a number of teams or zero.",
     "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
     "Mod created by EmilyEmmi, with help from EmeraldLockdown and resources from others.",
     "Tip: If someone offers to grant you 3 wishes, there's probably a catch.",
-    "Tip: The host can reset the Shine's position with /reset.",
-    "Tip: The player holding the Shine moves a bit slower.",
-    "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to pass the Shine.",
-    "Tip: After 5 minutes, the shine timer will be halved.",
     "Tip: You can enter Spectator Mode in the menu.",
     "Tip: Turn on God Mode to allow players to walk on lava and quicksand.",
     "Tip: Variants can be set to Random to pick a random variant each game!",
     "Tip: Ceiling climbing is a lot faster than in vanilla.",
 }
+local tip_game_mode = {
+    { -- Shine Thief
+        "Tip: When you have only 3 seconds left, the timer slows down.",
+        "Tip: If you lose the Shine, you will always have at least 5 seconds left.",
+        "Tip: A slide kick will instantly steal the Shine.",
+        "Tip: If you get stuck, pause and select 'Respawn' to respawn.",
+        "Tip: The host can reset the Shine's position with /reset.",
+        "Tip: The player holding the Shine moves a bit slower.",
+        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to pass the Shine.",
+        "Tip: After GAME_TIME, the shine timer will be halved.",
+    },
+    { -- Balloon Battle
+        "Tip: You'll be eliminated if you lose all of your balloons.",
+        "Tip: Elimination will turn you into a Bob-Omb. You can explode another player!",
+        "Tip: You can steal a Balloon by slide-kicking into another player.",
+        "After GAME_TIME, everyone will be left with one balloon.",
+    },
+    { -- Balloon Attack
+        "Tip: You'll lose half of your points if you lose all of your Balloons.",
+        "Tip: You'll get 3 points for sidelining a player.",
+        "Tip: You can steal a Balloon by slide-kicking into another player."
+    },
+}
 local tip_variant = {
-    "Tip: Two players must each hold a Shine to win.",
+    "VARIANT_SPECIAL_TIP",
     "Tip: The player holding the Shine will fly much slower.",
     "Tip: Press SPECIAL_BUTTON to spawn a shell. This can also be done in midair.",
     "Tip: You'll jump higher and fall slower. Hold Z to fall faster.",
@@ -58,10 +82,15 @@ local tip_variant = {
     "Tip: Press SPECIAL_BUTTON to throw bombs. Use the D-PAD to change the direction.",
     "Tip: Hold SPECIAL_BUTTON to boost! This can also be done while flying.",
 }
+local tip_variant_special = {
+    "Tip: Two players must each hold a Shine to win.",
+    "Tip: Hold SPECIAL_BUTTON to blow up more balloons!",
+    "Tip: Hold SPECIAL_BUTTON to blow up more balloons!",
+}
 local tip_item = {
-    "Tip: Using a Mushroom lets you move faster AND steal the Shine on any attack.",
+    "Tip: Using a Mushroom lets you move faster AND steal SHINE_OR_BALLOON on any attack.",
     "Tip: You can throw items in front of you, behind you, or to the side with the D-PAD.",
-    "Tip: The Feather can be used as a double jump or to steal the Shine.",
+    "Tip: The Feather can be used as a double jump or to steal SHINE_OR_BALLOON.",
     "Tip: You can dive, kick, or ground pound after using a feather.",
     "Tip: Red Shells can fly to hit players.",
     "Tip: Red Shells will automatically target the player in front of them.",
@@ -70,6 +99,7 @@ local tip_item = {
     "Tip: The POW Block hits any players standing on the ground.",
     "Tip: The Super Star makes you invincible and lets you attack players just by touching them!",
     "Tip: The Super Star does NOT make you faster.",
+    "Tip: The Super Star steals SHINE_OR_BALLOON on any attack.",
     "Tip: Two players with a Super Star can hurt each other.",
     "Tip: The Super Star lasts 10 seconds.",
     "Tip: Players falling behind will get better items.",
@@ -82,12 +112,28 @@ local tip_item = {
     "Tip: The Banana can be thrown a far distance if you hold UP un the D-PAD.",
     "Tip: More powerful items will appear if Items are set to Frantic.",
     "Tip: Less powerful items will appear if Items are set to Skilled.",
+    "Tip: Shells will break when coming into contact with Bananas or other Shells (WIP)."
 }
+
+local game_mode_list = {
+    "Random",
+    "\\#ffff40\\Shine Thief",
+    "\\#ff5a5a\\Balloon Battle",
+    "\\#ff5a5a\\Balloon Attack",
+}
+local game_mode_instruct = {
+    {"Get the \\#ffff40\\Shine\\#ffffff\\!", "%d seconds to win!"},
+    {"Keep your \\#ff5a5a\\Balloons\\#ffffff\\!", "Be the last one standing to win!"},
+    {"Pop \\#ff5a5a\\Balloons\\#ffffff\\!", "Get the most points in %d minutes!"},
+}
+
 local SPECIAL_BUTTON_STRING = "Y"
 local ITEM_BUTTON_STRING = "X"
 if _G.OmmEnabled then
-    tip_general[3] = "Tip: A slide kick or Cappy attack will instantly steal the Shine."
-    tip_general[4] = "Tip: After throwing Cappy, You can perform a homing attack by pressing the D-PAD."
+    tip_game_mode[1][3] = "Tip: A slide kick or Cappy attack will instantly steal the Shine."
+    tip_game_mode[2][3] = "Tip: You can steal a Balloon with a slide kick or Cappy attack."
+    tip_game_mode[3][3] = "Tip: You can steal a Balloon with a slide kick or Cappy attack."
+    tip_general[1] = "Tip: After throwing Cappy, You can perform a homing attack by pressing the D-PAD."
     SPECIAL_BUTTON_STRING = "L"
     ITEM_BUTTON_STRING = "the D-PAD while holding R"
 end
@@ -171,6 +217,18 @@ local menu_data = {
     },
     [5] = {
         {
+            "Game Mode",
+            function(x)
+                menuGameMode = x
+                save_setting("gameMode", x)
+            end,
+            currNum = 0,
+            minNum = -1,
+            maxNum = (#game_mode_list - 2),
+            nameRef = game_mode_list,
+            runOnChange = true
+        },
+        {
             "Map",
             function(x)
                 gGlobalSyncTable.mapChoice = x
@@ -228,6 +286,17 @@ local menu_data = {
             minNum = 0,
             maxNum = 3,
             nameRef = { "Off", "Normal", "Frantic", "Skilled" },
+            runOnChange = true
+        },
+        {
+            "Game Time (Min)",
+            function(x)
+                gGlobalSyncTable.maxGameTime = x
+                save_setting("maxGameTime", x)
+            end,
+            currNum = 5,
+            minNum = 1,
+            maxNum = 30,
             runOnChange = true
         },
         {
@@ -340,7 +409,7 @@ function on_hud_render()
             local np = gNetworkPlayers[i]
             local sMario = gPlayerSyncTable[i]
             if np.connected and ((not sMario.spectator) or get_player_owned_shine(i) ~= 0) then
-                table.insert(playerScore, { i, sMario.shineTimer or 0 })
+                table.insert(playerScore, { i, sMario.points or 0 })
             end
         end
         table.sort(playerScore, function(a, b)
@@ -368,7 +437,7 @@ function on_hud_render()
             x = x + 80 * scale
             text = playerColor .. np.name
             djui_hud_print_text_with_color(text, x, y, scale)
-            text = tostring(sMario.shineTimer)
+            text = tostring(sMario.points)
             local width = djui_hud_measure_text(text) * scale
             x = screenWidth * 0.5 + 300 * scale - width - 6
             djui_hud_set_color(255, 255, 64, 255)
@@ -378,21 +447,11 @@ function on_hud_render()
             x = screenWidth * 0.5 - 300 * scale
         end
 
-        if tipNum == 0 then
-            if gGlobalSyncTable.items ~= 0 then
-                tipNum = math.random(1, #tip_general + #tip_item)
-            else
-                tipNum = math.random(1, #tip_general)
-            end
-        end
         djui_hud_set_font(FONT_MENU)
-        local subText3
-        if tipNum > #tip_general then
-            subText3 = tip_item[tipNum - #tip_general]
-        else
-            subText3 = tip_general[tipNum]
+        if not currTip then
+            currTip = new_tip()
         end
-        subText3 = string.gsub(subText3, "ITEM_BUTTON", ITEM_BUTTON_STRING)
+        local subText3 = currTip
         local scale3 = 0.5
         y = screenHeight - scale3 * 70
         width = djui_hud_measure_text(subText3) * scale3
@@ -402,7 +461,7 @@ function on_hud_render()
 
         return
     else
-        tipNum = 0
+        currTip = nil
         djui_hud_set_font(FONT_NORMAL)
         local np = {}
         np[1] = network_player_from_global_index(localWinner or 0)
@@ -483,40 +542,29 @@ function on_hud_render()
 
             text = string.format("%d", ((300 - localGameTimer) // 30) + 1)
             alpha = 17 * secFrame
-            tipNum = 0
         else
             if usingTimer < 30 then
                 alpha = 8 * usingTimer
             end
-            text = "Get the \\#ffff40\\Shine\\#ffffff\\!"
-            subText1 = gGlobalSyncTable.winTime .. " seconds to win!"
+
+            text = game_mode_instruct[gGlobalSyncTable.gameMode+1][1]
+            if gGlobalSyncTable.gameMode ~= 0 then
+                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode+1][2], gGlobalSyncTable.maxGameTime)
+            else
+                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode+1][2], gGlobalSyncTable.winTime)
+            end
+
             if gGlobalSyncTable.variant ~= 0 then
-                subText2 = "Variant: " .. tostring(variant_list[gGlobalSyncTable.variant + 2])
+                subText2 = tostring(variant_list[gGlobalSyncTable.variant + 2])
+                if subText2 == "VARIANT_SPECIAL" then subText2 = variant_special_list[gGlobalSyncTable.gameMode+2] end
+                subText2 = "Variant: " .. subText2
             end
             localGameTimer = usingTimer
-            if tipNum == 0 then
-                if gGlobalSyncTable.teamMode ~= 0 then
-                    tipNum = 9 -- always show team tip
-                elseif gNetworkPlayers[0].name == "Unreal" then
-                    tipNum = 5 -- always show credit tip
-                elseif gGlobalSyncTable.items ~= 0 then
-                    tipNum = math.random(1, #tip_general + #tip_item)
-                else
-                    tipNum = math.random(1, #tip_general)
-                end
-            end
-        end
 
-        if tipNum == 0 then
-            -- nothing
-        elseif gGlobalSyncTable.variant == 0 then
-            if tipNum > #tip_general then
-                subText3 = tip_item[tipNum - #tip_general]
-            else
-                subText3 = tip_general[tipNum]
+            if not currTip then
+                currTip = new_tip(gGlobalSyncTable.variant ~= 0)
             end
-        else
-            subText3 = tip_variant[gGlobalSyncTable.variant]
+            subText3 = currTip
         end
 
         if alpha > 255 then alpha = 255 end
@@ -543,8 +591,6 @@ function on_hud_render()
             djui_hud_print_text_with_color(subText2, x, y, scale2, alpha)
         end
         if subText3 ~= "" then
-            subText3 = string.gsub(subText3, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
-            subText3 = string.gsub(subText3, "ITEM_BUTTON", ITEM_BUTTON_STRING)
             local scale3 = 0.5
             y = screenHeight - scale3 * 70
             width = djui_hud_measure_text(subText3) * scale3
@@ -632,7 +678,7 @@ function on_hud_render()
         djui_hud_set_font(FONT_HUD)
         local shineIndex = shineIndexes[1]
         local shinePlayer = gPlayerSyncTable[shineIndex]
-        local timeLeft = (gGlobalSyncTable.winTime - shinePlayer.shineTimer)
+        local timeLeft = (gGlobalSyncTable.winTime - shinePlayer.points)
 
         -- sound
         if prevTimerNum[0] ~= timeLeft and timeLeft >= 0 then
@@ -1023,6 +1069,7 @@ function render_menu()
             if button.currNum then
                 if button.nameRef and button.nameRef[button.currNum - button.minNum + 1] then
                     local optionText = button.nameRef[button.currNum - button.minNum + 1]
+                    if optionText == "VARIANT_SPECIAL" then optionText = variant_special_list[menuGameMode+2] end
                     text = text .. "  < " .. remove_color(optionText) .. " >"
                 else
                     text = text .. "  < " .. button.currNum .. " >"
@@ -1226,6 +1273,12 @@ function get_menu_option(id, option)
 end
 
 function new_game_set_settings(msg)
+    if menuGameMode ~= -1 then
+        gGlobalSyncTable.gameMode = menuGameMode
+    else
+        gGlobalSyncTable.gameMode = math.random(0, (#game_mode_list - 2))
+    end
+
     if menuTeam ~= -1 then
         gGlobalSyncTable.teamMode = menuTeam
     elseif math.random(1, 2) == 1 then -- 50% chance of free for all
@@ -1239,14 +1292,18 @@ function new_game_set_settings(msg)
         end
     end
 
-    if menuVariant == 1 and (gGlobalSyncTable.teamMode == 2 or get_participant_count() < 3) then
-        djui_popup_create("Not enough teams or players for Double Shine!", 2)
-        gGlobalSyncTable.variant = 0
+    if menuVariant == 1 then
+        if gGlobalSyncTable.gameMode == 0 and (gGlobalSyncTable.teamMode == 2 or get_participant_count() < 3) then
+            djui_popup_create("Not enough teams or players for Double Shine!", 2)
+            gGlobalSyncTable.variant = 0
+        else
+            gGlobalSyncTable.variant = menuVariant
+        end
     elseif menuVariant ~= -1 then
         gGlobalSyncTable.variant = menuVariant
     else
         local bottom = 1
-        if (gGlobalSyncTable.teamMode == 2 or get_participant_count() < 3) then
+        if (gGlobalSyncTable.gameMode == 0 and (gGlobalSyncTable.teamMode == 2 or get_participant_count() < 3)) then
             bottom = 2
         end
         gGlobalSyncTable.variant = math.random(bottom, #variant_list - 2)
@@ -1422,6 +1479,47 @@ function placeString(num)
         return tostring(num) .. "rd"
     end
     return tostring(num) .. "th"
+end
+
+-- generates a new tip based on the mode and other settings; set "variant" to true to return the variant tip
+function new_tip(variant)
+    if variant then
+        local text = tip_variant[gGlobalSyncTable.variant]
+        if text == "VARIANT_SPECIAL_TIP" then
+            text = tip_variant_special[gGlobalSyncTable.gameMode+1]
+        end
+        text = string.gsub(text, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
+        return text
+    end
+
+    local tip_curr_mode = tip_game_mode[gGlobalSyncTable.gameMode+1]
+    local tipNum = 0
+    if gNetworkPlayers[0].name == "Unreal" then
+        return tip_general[4] -- always show credit tip
+    elseif gGlobalSyncTable.items ~= 0 then
+        tipNum = math.random(1, #tip_general + #tip_curr_mode + #tip_item)
+    else
+        tipNum = math.random(1, #tip_general + #tip_curr_mode)
+    end
+    
+    local text = ""
+    if tipNum > #tip_general + #tip_curr_mode then
+        text = tip_item[tipNum - #tip_general - #tip_curr_mode]
+    elseif tipNum > #tip_general then
+        text = tip_curr_mode[tipNum - #tip_general]
+    else
+        text = tip_general[tipNum]
+    end
+
+    text = string.gsub(text, "ITEM_BUTTON", ITEM_BUTTON_STRING)
+    text = string.gsub(text, "GAME_TIME", string.format("%d minute(s)", gGlobalSyncTable.maxGameTime))
+
+    if gGlobalSyncTable.gameMode == 0 then
+        text = string.gsub(text, "SHINE_OR_BALLOON", "the Shine")
+    else
+        text = string.gsub(text, "SHINE_OR_BALLOON", "a balloon")
+    end
+    return text
 end
 
 -- renders player head... with color!
@@ -1606,23 +1704,29 @@ function menu_set_settings(load)
         menuTeam = load_setting("teamMode") or 0
         menuVariant = load_setting("variant") or 0
         if menuVariant > (#variant_list - 2) then menuVariant = 0 end
+        menuGameMode = load_setting("gameMode") or 0
         gGlobalSyncTable.mapChoice = load_setting("mapChoice") or 0
         gGlobalSyncTable.items = load_setting("items") or 1
+        gGlobalSyncTable.maxGameTime = load_setting("maxGameTime") or 5
         gGlobalSyncTable.godMode = load_setting("godMode", true) or false
     else
         if menuTeam ~= -1 then
             menuTeam = gGlobalSyncTable.teamMode
         end
-
         if menuVariant ~= -1 then
             menuVariant = gGlobalSyncTable.variant
         end
+        if menuGameMode ~= -1 then
+            menuGameMode = gGlobalSyncTable.gameMode
+        end
     end
-    set_menu_option(5, 1, gGlobalSyncTable.mapChoice)
-    set_menu_option(5, 2, menuVariant)
-    set_menu_option(5, 3, menuTeam)
-    set_menu_option(5, 4, gGlobalSyncTable.items)
-    set_menu_option(5, 5, (gGlobalSyncTable.godMode and 1) or 0)
+    set_menu_option(5, 1, menuGameMode)
+    set_menu_option(5, 2, gGlobalSyncTable.mapChoice)
+    set_menu_option(5, 3, menuVariant)
+    set_menu_option(5, 4, menuTeam)
+    set_menu_option(5, 5, gGlobalSyncTable.items)
+    set_menu_option(5, 6, gGlobalSyncTable.maxGameTime)
+    set_menu_option(5, 7, (gGlobalSyncTable.godMode and 1) or 0)
 end
 
 -- converts text to sm64 style abbreviation (ex: Bowser In The Sky becomes BitS)

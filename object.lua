@@ -292,6 +292,8 @@ function lose_shine(index, dropType, attacker)
 end
 
 function drop_shine(index, dropType, attacker)
+    if get_player_owned_shine(index) == 0 then return end
+    
     if not network_is_server() then
         -- send drop packet to server
         local owner = nil

@@ -333,9 +333,9 @@ function random_item()
             valid = false
         elseif (item == ITEM_BOMB or item == ITEM_TRIPLE_BOMB) and gGlobalSyncTable.variant == 6 then
             valid = false
-        elseif get_player_owned_shine(0) ~= 0 and (sMario.shineTimer >= gGlobalSyncTable.winTime - 15) and not data.first then -- only certain items when close to winning and owning shine
+        elseif get_player_owned_shine(0) ~= 0 and (sMario.points >= gGlobalSyncTable.winTime - 15) and not data.first then -- only certain items when close to winning and owning shine
             valid = false
-        elseif sMario.shineTimer < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 and data.frantic then                -- after 30 seconds, players not doing well get better items
+        elseif sMario.points < gGlobalSyncTable.winTime - 15 and gMarioStates[0].marioObj.oTimer > 900 and data.frantic then                -- after 30 seconds, players not doing well get better items
             weight = weight * 2
         end
 

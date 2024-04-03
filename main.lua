@@ -1,5 +1,6 @@
--- name: \\#ffff40\\Shine Thief (v2.0)
--- description: Shine Thief from Mario Kart: Double Dash and Mario Kart 8 Deluxe, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nAdditional programming by EmeraldLockdown and NeedleN64\n\nShine Dynos by Blocky\n\nSome graphics, models, and sounds created/provided by NeedleN64, viandegras, and djoslin0\n\nMcDonalds by chillyzone\nArena by Agent X + others
+-- name: \\#ffff40\\Shine Thief+ (v2.2 WIP)
+-- description: If you leak this I stg
+-- description_actual: Shine Thief and Balloon Battle from the Mario Kart series, now in sm64ex-coop!\n\nMod by EmilyEmmi\n\nAdditional programming by EmeraldLockdown and NeedleN64\n\nShine Dynos by Blocky\n\nSome graphics, models, and sounds created/provided by NeedleN64, viandegras, and djoslin0\n\nMcDonalds by chillyzone\nArena by Agent X + others
 -- incompatible: gamemode
 
 gGlobalSyncTable.gameLevel = 0
@@ -8,7 +9,7 @@ gGlobalSyncTable.gameTimer = 0
 gGlobalSyncTable.showTime = false
 gGlobalSyncTable.winner = 0
 gGlobalSyncTable.winner2 = 0
-gGlobalSyncTable.winTime = 20 -- this changes depending on the amount of players
+gGlobalSyncTable.winTime = 20 -- this changes depending on the amount of players (shine thief)
 gGlobalSyncTable.spawnOffset = 0
 gGlobalSyncTable.shineOwner1 = -1
 gGlobalSyncTable.shineOwner2 = -1
@@ -18,11 +19,13 @@ gGlobalSyncTable.voteMap3 = 3
 gGlobalSyncTable.wonMap = -1
 
 -- settings
+gGlobalSyncTable.gameMode = 0
 gGlobalSyncTable.teamMode = 0
 gGlobalSyncTable.variant = 0
 gGlobalSyncTable.mapChoice = 0
 gGlobalSyncTable.items = 1
 gGlobalSyncTable.godMode = false
+gGlobalSyncTable.maxGameTime = 0
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
@@ -140,11 +143,10 @@ function spectator_mode()
         gMarioStates[0].capTimer = 0
         stop_cap_music()
         if gGlobalSyncTable.gameState ~= 3 then
-            if get_player_owned_shine(0) ~= 0 then
-                drop_shine(0, 1)
-            end
+            drop_shine(0, 1)
             if sMario.team ~= 0 then
-                sMario.shineTimer = 0
+                sMario.points = 0
+                sMario.balloons = 3
                 sMario.team = 0
             end
         end
@@ -295,14 +297,14 @@ function mario_update(m)
     local np = gNetworkPlayers[m.playerIndex]
     local ownedShine = get_player_owned_shine(m.playerIndex)
 
-    if m.playerIndex == 0 and gGlobalSyncTable.gameState == 3 and m.action ~= ACT_SHINE_DANCE and m.action ~= ACT_SHINE_LOSE then
+    if m.playerIndex == 0 and gGlobalSyncTable.gameState == 3 and m.action ~= ACT_GAME_WIN and m.action ~= ACT_GAME_LOSE then
         drop_queued_background_music()
         fadeout_level_music(1)
         set_dance_action()
     end
 
     -- cancel game if there aren't enough players
-    if m.playerIndex == 0 and network_is_server() and gGlobalSyncTable.variant == 1 and gGlobalSyncTable.gameState == 2 and get_participant_count() < 3 then
+    if m.playerIndex == 0 and network_is_server() and gGlobalSyncTable.gameMode == 0 and gGlobalSyncTable.variant == 1 and gGlobalSyncTable.gameState == 2 and get_participant_count() < 3 then
         gGlobalSyncTable.variant = 0
         new_game()
         djui_popup_create_global("Not enough players for Double Shine!", 2)
@@ -311,7 +313,7 @@ function mario_update(m)
     -- drop the shine if we take damage
     if (m.action == ACT_BURNING_FALL or m.action == ACT_BURNING_GROUND or m.action == ACT_BURNING_JUMP
             or m.hurtCounter > 0 or cappyStealer ~= 0 or modAttacker ~= 0)
-        and ownedShine ~= 0 and m.playerIndex == 0 then
+        and m.playerIndex == 0 then
         if modAttacker ~= 0 then
             drop_shine(0, 0, modAttacker)
             modAttacker = 0
@@ -357,30 +359,55 @@ function mario_update(m)
         on_death(m)
     end
 
-    if sMario.shineTimer == nil then sMario.shineTimer = 0 end
+    if sMario.points == nil then sMario.points = 0 end
+    if sMario.balloons == nil then sMario.balloons = 3 end
 
-    -- set player colors
-    local extra
-    local color = { r = 255, g = 64, b = 64, a = 255 } -- red
-    if sMario.team == 0 or sMario.team == nil then
-        if ownedShine ~= 0 then
-            color = { r = 255, g = 255, b = 64, a = 255 } -- yellow
-        end
-        np.overridePaletteIndex = np.paletteIndex
-    elseif TEAM_PALETTE[sMario.team] then
-        np.overridePaletteIndex = TEAM_PALETTE[sMario.team][1]
-        color = deep_copy(TEAM_PALETTE[sMario.team][2])
-        extra = TEAM_PALETTE[sMario.team][3]
-        if ownedShine == 0 then color.a = 100 end
-    end
-    -- set player descriptions
+    -- set player colors + desc
     if sMario.spectator then
         network_player_set_description(np, "Spectator", 128, 128, 128, 255)
-    elseif extra then
-        network_player_set_description(np, extra .. ": " .. tostring(sMario.shineTimer), color.r, color.g, color.b,
-            color.a)
+    elseif sMario.eliminated then
+        network_player_set_description(np, "Eliminated", 256, 30, 30, 255)
     else
-        network_player_set_description(np, tostring(sMario.shineTimer), color.r, color.g, color.b, color.a)
+        local desc = ""
+        local highlight = false
+        local extra
+        local color = { r = 255, g = 64, b = 64, a = 255 } -- red
+        if gGlobalSyncTable.gameMode == 0 then
+            desc = tostring(sMario.points)
+            if ownedShine ~= 0 then
+                highlight = true
+            end
+        elseif gGlobalSyncTable.gameMode == 1 then
+            desc = tostring(sMario.balloons)
+            if has_most_balloons(m.playerIndex) then
+                highlight = true
+            end
+        elseif gGlobalSyncTable.gameMode == 2 then
+            desc = tostring(sMario.points)
+            if has_most_points(m.playerIndex) then
+                highlight = true
+            end
+        end
+
+        if sMario.team == 0 or sMario.team == nil then
+            np.overridePaletteIndex = np.paletteIndex
+            if highlight then
+                color = { r = 255, g = 255, b = 64, a = 255 } -- yellow
+            end
+        elseif TEAM_PALETTE[sMario.team] then
+            np.overridePaletteIndex = TEAM_PALETTE[sMario.team][1]
+            color = deep_copy(TEAM_PALETTE[sMario.team][2])
+            extra = TEAM_PALETTE[sMario.team][3]
+            if not highlight then color.a = 100 end
+        end
+
+        -- set player descriptions
+        if extra then
+            network_player_set_description(np, extra .. ": " .. desc, color.r, color.g, color.b,
+                color.a)
+        else
+            network_player_set_description(np, desc, color.r, color.g, color.b, color.a)
+        end
     end
 
     -- handle holding shine
@@ -388,19 +415,19 @@ function mario_update(m)
         if m.invincTimer ~= 0 then m.invincTimer = m.invincTimer - 1 end
 
         if gGlobalSyncTable.variant ~= 1 then
-            if m.playerIndex == 0 and sMario.shineTimer <= gGlobalSyncTable.winTime then
+            if m.playerIndex == 0 and sMario.points <= gGlobalSyncTable.winTime then
                 shineFrameCounter = shineFrameCounter + 1
                 if gGlobalSyncTable.showTime then
                     shineFrameCounter = shineFrameCounter + 1
                 end
                 if gGlobalSyncTable.gameState == 2 then
-                    if shineFrameCounter >= 60 or (shineFrameCounter >= 30 and sMario.shineTimer < gGlobalSyncTable.winTime - 3) then -- it's 2 seconds per second near the end
-                        sMario.shineTimer = sMario.shineTimer +
-                            1                                                                                                         -- increment timer
+                    if shineFrameCounter >= 60 or (shineFrameCounter >= 30 and sMario.points < gGlobalSyncTable.winTime - 3) then -- it's 2 seconds per second near the end
+                        sMario.points = sMario.points +
+                            1                                                                                                     -- increment timer
                         shineFrameCounter = 0
                     end
-                    if sMario.shineTimer > gGlobalSyncTable.winTime then -- victory
-                        sMario.shineTimer = gGlobalSyncTable.winTime
+                    if sMario.points > gGlobalSyncTable.winTime then -- victory
+                        sMario.points = gGlobalSyncTable.winTime
                         network_send_include_self(true, {
                             id = PACKET_VICTORY,
                             winner = np.globalIndex,
@@ -412,19 +439,19 @@ function mario_update(m)
             end
         else -- double shine works a bit different
             local mySMario = gPlayerSyncTable[0]
-            if m.playerIndex ~= 0 and get_player_owned_shine(0) ~= 0 and mySMario.shineTimer <= gGlobalSyncTable.winTime then
+            if m.playerIndex ~= 0 and get_player_owned_shine(0) ~= 0 and mySMario.points <= gGlobalSyncTable.winTime then
                 shineFrameCounter = shineFrameCounter + 1
                 if gGlobalSyncTable.showTime then
                     shineFrameCounter = shineFrameCounter + 1
                 end
                 if gGlobalSyncTable.gameState == 2 then
-                    if shineFrameCounter >= 60 or (shineFrameCounter >= 30 and sMario.shineTimer < gGlobalSyncTable.winTime - 3) then -- it's 2 seconds per second near the end
-                        mySMario.shineTimer = mySMario.shineTimer +
-                            1                                                                                                         -- increment timer
+                    if shineFrameCounter >= 60 or (shineFrameCounter >= 30 and sMario.points < gGlobalSyncTable.winTime - 3) then -- it's 2 seconds per second near the end
+                        mySMario.points = mySMario.points +
+                            1                                                                                                     -- increment timer
                         shineFrameCounter = 0
                     end
-                    if mySMario.shineTimer > gGlobalSyncTable.winTime then -- victory
-                        mySMario.shineTimer = gGlobalSyncTable.winTime
+                    if mySMario.points > gGlobalSyncTable.winTime then -- victory
+                        mySMario.points = gGlobalSyncTable.winTime
                         network_send_include_self(true, {
                             id = PACKET_VICTORY,
                             winner = get_shine_owner(1) or gNetworkPlayers[0].globalIndex,
@@ -438,39 +465,31 @@ function mario_update(m)
 
         if m.playerIndex ~= 0 then
             local mySMario = gPlayerSyncTable[0]
-            -- prevent dual ownership
-            if get_player_owned_shine(0) == ownedShine then
-                if gMarioStates[0].forwardVel > m.forwardVel then -- the player moving faster gets priority
-                    drop_shine(m.playerIndex)
-                else
-                    drop_shine(0)
-                end
-            end
             -- update team shine timer
             if get_player_owned_shine(0) ~= 0 and ownedShine ~= 0 then
-                if math.abs(mySMario.shineTimer - sMario.shineTimer) > 1 then
+                if math.abs(mySMario.points - sMario.points) > 1 then
                     -- average the time
-                    local avg = (mySMario.shineTimer + sMario.shineTimer) // 2
-                    mySMario.shineTimer = avg
-                    sMario.shineTimer = avg
+                    local avg = (mySMario.points + sMario.points) // 2
+                    mySMario.points = avg
+                    sMario.points = avg
                     shineFrameCounter = 0
-                elseif mySMario.shineTimer < sMario.shineTimer then
-                    mySMario.shineTimer = sMario.shineTimer
+                elseif mySMario.points < sMario.points then
+                    mySMario.points = sMario.points
                     shineFrameCounter = 0
                 end
             elseif mySMario.team ~= 0 and mySMario.team == sMario.team then
-                if mySMario.shineTimer < sMario.shineTimer and sMario.shineTimer <= gGlobalSyncTable.winTime - 5 then
-                    mySMario.shineTimer = sMario.shineTimer
+                if mySMario.points < sMario.points and sMario.points <= gGlobalSyncTable.winTime - 5 then
+                    mySMario.points = sMario.points
                     shineFrameCounter = 0
                 end
             end
         end
 
         set_mario_particle_flags(m, PARTICLE_SPARKLES, 0) -- sparkle if we have shine
-    elseif m.playerIndex == 0 then
+    elseif m.playerIndex == 0 and gGlobalSyncTable.gameMode == 0 then
         shineFrameCounter = 0
-        if sMario.shineTimer > gGlobalSyncTable.winTime - 5 then
-            sMario.shineTimer = gGlobalSyncTable.winTime - 5 -- always have '5' seconds left (actually more)
+        if sMario.points > gGlobalSyncTable.winTime - 5 then
+            sMario.points = gGlobalSyncTable.winTime - 5 -- always have '5' seconds left (actually more)
         end
     end
 
@@ -530,12 +549,14 @@ function mario_update(m)
     end
 
     -- items and shine passing
-    if m.playerIndex == 0 and gGlobalSyncTable.gameState ~= 3 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
+    if m.playerIndex == 0 and gGlobalSyncTable.gameState ~= 3 and (sMario.item ~= 0 or (gGlobalSyncTable.teamMode ~= 0 and ownedShine ~= 0)) then
         local throwDir = throw_direction()
-        if sMario.item ~= 0 and throwDir ~= 4 then
-            sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
-        elseif throwDir ~= 4 then -- pass shine in team mode
-            drop_shine(0, 2)
+        if throwDir ~= 4 then
+            if sMario.item ~= 0 then
+                sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
+            else -- pass shine in team mode
+                drop_shine(0, 2)
+            end
         end
     end
 
@@ -672,9 +693,9 @@ function mario_update(m)
                 gGlobalSyncTable.gameState = 2
             end
         elseif gGlobalSyncTable.gameState == 2 and m.playerIndex == 0 and network_is_server() then
-            if showTimeTimer < 9000 then
+            if showTimeTimer < gGlobalSyncTable.maxGameTime * 1800 then
                 showTimeTimer = showTimeTimer + 1
-                if showTimeTimer == 8700 then -- 10 seconds left
+                if showTimeTimer == gGlobalSyncTable.maxGameTime * 1800 - 300 then -- 10 seconds left
                     djui_popup_create_global("10 seconds until Showtime!", 1)
                 end
             elseif gGlobalSyncTable.showTime == false then
@@ -695,6 +716,8 @@ hook_event(HOOK_MARIO_UPDATE, mario_update)
 
 -- important functions: gets or sets the shine status
 function get_player_owned_shine(index)
+    if gGlobalSyncTable.gameMode ~= 0 then return 0 end
+
     local globalIndex = network_global_index_from_local(index)
     if not globalIndex then return 0 end
     if globalIndex == gGlobalSyncTable.shineOwner1 then
@@ -723,12 +746,48 @@ function set_player_owned_shine(index, shine)
 end
 
 function get_shine_owner(shine)
+    if gGlobalSyncTable.gameMode ~= 0 then return -1 end
+
     if shine == 1 then
         return gGlobalSyncTable.shineOwner1
     elseif shine == 2 then
         return gGlobalSyncTable.shineOwner2
     end
     return -1
+end
+
+local mostBalls = -1
+function has_most_balloons(index)
+    if mostBalls ~= -1 then return gPlayerSyncTable[index].balloons >= mostBalls end
+
+    local hasMost = false
+    for i = 0, MAX_PLAYERS - 1 do
+        local points = gPlayerSyncTable[i].balloons
+        if points > mostBalls then
+            hasMost = (i == index)
+            mostBalls = points
+        elseif points == mostBalls and i == index then
+            hasMost = true
+        end
+    end
+    return hasMost
+end
+
+local mostPoints = -1
+function has_most_points(index)
+    if mostPoints ~= -1 then return gPlayerSyncTable[index].points >= mostPoints end
+
+    local hasMost = false
+    for i = 0, MAX_PLAYERS - 1 do
+        local points = gPlayerSyncTable[i].points
+        if points > mostPoints then
+            hasMost = (i == index)
+            mostPoints = points
+        elseif points == mostPoints and i == index then
+            hasMost = true
+        end
+    end
+    return hasMost
 end
 
 -- utility function that returns if a floor is hazardous (lava, quicksand, or death plane)
@@ -921,13 +980,12 @@ local steal_actions = {
 function on_pvp_attack(attacker, victim, cappyAttack, item)
     victim.hurtCounter = 0
     if victim.playerIndex == 0 then
-        local vOwnedShine = get_player_owned_shine(0)
         local sVictim = gPlayerSyncTable[victim.playerIndex]
         local sAttacker = gPlayerSyncTable[attacker.playerIndex]
 
         if not item and ((sAttacker.star and not sVictim.star) or (sAttacker.mushroomTime and sAttacker.mushroomTime ~= 0)
                 or steal_actions[attacker.action] or cappyAttack) then
-            if vOwnedShine ~= 0 and get_player_owned_shine(attacker.playerIndex) == 0 then
+            if get_player_owned_shine(attacker.playerIndex) == 0 then
                 if cappyAttack then -- can't send packet from OMM, so use old system (kind of)
                     cappyStealer = attacker.playerIndex
                     return
@@ -936,9 +994,7 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
             end
         end
 
-        if vOwnedShine ~= 0 then
-            drop_shine(victim.playerIndex, 0, attacker.playerIndex)
-        end
+        return drop_shine(victim.playerIndex, 0, attacker.playerIndex)
     end
 end
 
@@ -969,9 +1025,7 @@ end
 
 -- drop shine on death (runs when falling)
 function on_death(m)
-    if get_player_owned_shine(m.playerIndex) ~= 0 then
-        drop_shine(m.playerIndex, 1)
-    end
+    drop_shine(m.playerIndex, 1)
     go_to_mario_start(m.playerIndex, gNetworkPlayers[m.playerIndex].globalIndex, true)
     return false
 end
@@ -981,9 +1035,7 @@ hook_event(HOOK_ON_DEATH, on_death)
 function on_pause_exit(exitToCastle)
     if gGlobalSyncTable.gameState ~= 3 then
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
-        if get_player_owned_shine(0) ~= 0 then
-            drop_shine(0, 1)
-        end
+        drop_shine(0, 1)
     end
     return false
 end
@@ -1170,7 +1222,8 @@ function on_sync_valid()
     if not didFirstJoinStuff then
         print("My global index is ", gNetworkPlayers[0].globalIndex)
 
-        sMario.shineTimer = 0
+        sMario.points = 0
+        sMario.balloons = 3
         sMario.specialCooldown = 0
         sMario.boostTime = 0
         sMario.item = 0
@@ -1282,100 +1335,107 @@ function spawn_objects_at_start()
     if sync_valid ~= 0 then return end
 
     if network_is_server() then
-        local shine = obj_get_first_with_behavior_id(id_bhvShine)
-        if not shine then
-            local m = gMarioStates[0]
-            local pos = { m.pos.x, m.floorHeight + 161, m.pos.z + 500 }
-            if m.floor and is_hazard_floor(m.floor.type) then
-                pos[2] = m.pos.y
-            end
-            local needPlat = false
-            local programmedStart = false
-            if thisLevel.shineStart then
-                programmedStart = true
-                pos = thisLevel.shineStart
-            elseif #spawn_potential > 0 then
-                pos = spawn_potential[1]
-            else
-                local actor = obj_get_first(OBJ_LIST_GENACTOR)
-                if actor then
-                    pos = { actor.oPosX, actor.oPosY + 160, actor.oPosZ }
-                    needPlat = true
+        if gGlobalSyncTable.gameMode == 0 then
+            local shine = obj_get_first_with_behavior_id(id_bhvShine)
+            if not shine then
+                local m = gMarioStates[0]
+                local pos = { m.pos.x, m.floorHeight + 161, m.pos.z + 500 }
+                if m.floor and is_hazard_floor(m.floor.type) then
+                    pos[2] = m.pos.y
                 end
-            end
-            --djui_popup_create("spawned shine",1)
-
-            if gGlobalSyncTable.variant ~= 1 then
-                shine = spawn_sync_object(
-                    id_bhvShine,
-                    E_MODEL_SHINE,
-                    pos[1], pos[2], pos[3],
-                    function(o)
-                        o.oBehParams = 0x1
+                local needPlat = false
+                if thisLevel.shineStart then
+                    pos = thisLevel.shineStart
+                elseif #spawn_potential > 0 then
+                    pos = spawn_potential[1]
+                else
+                    local actor = obj_get_first(OBJ_LIST_GENACTOR)
+                    if actor then
+                        pos = { actor.oPosX, actor.oPosY + 160, actor.oPosZ }
+                        needPlat = true
                     end
-                )
-                local mark = spawn_sync_object(
-                    id_bhvShineMarker,
-                    E_MODEL_TRANSPARENT_STAR,
-                    pos[1], pos[2] - 120, pos[3],
-                    nil
-                )
-                if mark then
-                    mark.parentObj = shine
                 end
-            else
-                shine = spawn_sync_object(
-                    id_bhvShine,
-                    E_MODEL_SHINE,
-                    pos[1] - 100, pos[2], pos[3],
-                    function(o)
-                        o.oBehParams = 0x1
+                --djui_popup_create("spawned shine",1)
+
+                if gGlobalSyncTable.variant ~= 1 then
+                    shine = spawn_sync_object(
+                        id_bhvShine,
+                        E_MODEL_SHINE,
+                        pos[1], pos[2], pos[3],
+                        function(o)
+                            o.oBehParams = 0x1
+                        end
+                    )
+                    local mark = spawn_sync_object(
+                        id_bhvShineMarker,
+                        E_MODEL_TRANSPARENT_STAR,
+                        pos[1], pos[2] - 120, pos[3],
+                        nil
+                    )
+                    if mark then
+                        mark.parentObj = shine
                     end
-                )
-                local mark = spawn_sync_object(
-                    id_bhvShineMarker,
-                    E_MODEL_TRANSPARENT_STAR,
-                    pos[1], pos[2] - 120, pos[3],
-                    nil
-                )
-                if mark then
-                    mark.parentObj = shine
+                else
+                    shine = spawn_sync_object(
+                        id_bhvShine,
+                        E_MODEL_SHINE,
+                        pos[1] - 100, pos[2], pos[3],
+                        function(o)
+                            o.oBehParams = 0x1
+                        end
+                    )
+                    local mark = spawn_sync_object(
+                        id_bhvShineMarker,
+                        E_MODEL_TRANSPARENT_STAR,
+                        pos[1], pos[2] - 120, pos[3],
+                        nil
+                    )
+                    if mark then
+                        mark.parentObj = shine
+                    end
+                    shine = spawn_sync_object(
+                        id_bhvShine,
+                        E_MODEL_SHINE,
+                        pos[1] + 100, pos[2], pos[3],
+                        function(o)
+                            o.oBehParams = 0x2
+                        end
+                    )
+                    mark = spawn_sync_object(
+                        id_bhvShineMarker,
+                        E_MODEL_TRANSPARENT_STAR,
+                        pos[1], pos[2] - 120, pos[3],
+                        nil
+                    )
+                    if mark then
+                        mark.parentObj = shine
+                    end
                 end
-                shine = spawn_sync_object(
-                    id_bhvShine,
-                    E_MODEL_SHINE,
-                    pos[1] + 100, pos[2], pos[3],
-                    function(o)
-                        o.oBehParams = 0x2
-                    end
-                )
-                mark = spawn_sync_object(
-                    id_bhvShineMarker,
-                    E_MODEL_TRANSPARENT_STAR,
-                    pos[1], pos[2] - 120, pos[3],
-                    nil
-                )
-                if mark then
-                    mark.parentObj = shine
+
+                if needPlat then
+                    spawn_sync_object(
+                        id_bhvStaticCheckeredPlatform,
+                        E_MODEL_CHECKERBOARD_PLATFORM,
+                        pos[1], pos[2] - 186, pos[3],
+                        nil
+                    )
                 end
             end
+        end
 
-            if needPlat then
-                spawn_sync_object(
-                    id_bhvStaticCheckeredPlatform,
-                    E_MODEL_CHECKERBOARD_PLATFORM,
-                    pos[1], pos[2] - 186, pos[3],
-                    nil
-                )
-            end
-
-            if thisLevel.itemBoxLocations and gGlobalSyncTable.items ~= 0 then
+        local item = obj_get_first_with_behavior_id(id_bhvItemBox)
+        if (not item) and gGlobalSyncTable.items ~= 0 then
+            if thisLevel.itemBoxLocations then
                 for i, pos in ipairs(thisLevel.itemBoxLocations) do
                     spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
                 end
-            elseif #spawn_potential > 0 and gGlobalSyncTable.items ~= 0 then
+                if gGlobalSyncTable.gameMode ~= 0 and thisLevel.shineStart then
+                    local pos = thisLevel.shineStart
+                    spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
+                end
+            elseif #spawn_potential > 0 then
                 for i, pos in ipairs(spawn_potential) do
-                    if i ~= 1 or programmedStart then
+                    if i ~= 1 or gGlobalSyncTable.gameMode ~= 0 then
                         spawn_sync_object(id_bhvItemBox, E_MODEL_ITEM_BOX, pos[1], pos[2], pos[3], nil)
                     end
                 end
@@ -1464,7 +1524,8 @@ function on_packet_new_game(data, self)
     end
 
     for i = 0, MAX_PLAYERS - 1 do
-        gPlayerSyncTable[i].shineTimer = 0
+        gPlayerSyncTable[i].points = 0
+        gPlayerSyncTable[i].balloons = 3
         gPlayerSyncTable[i].specialCooldown = 0
         gPlayerSyncTable[i].myVote = 0
         if data.teams == 0 then

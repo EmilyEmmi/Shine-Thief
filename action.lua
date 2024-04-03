@@ -243,7 +243,7 @@ hook_mario_action(ACT_HANG_MOVING, act_custom_hang_moving)
 
 -- win animation
 --- @param m MarioState
-function act_shine_dance(m)
+function act_game_win(m)
     if not m then return 0 end
 
     m.faceAngle.x = 0
@@ -274,12 +274,12 @@ function act_shine_dance(m)
     return false
 end
 
-ACT_SHINE_DANCE = allocate_mario_action(ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)
-hook_mario_action(ACT_SHINE_DANCE, act_shine_dance)
+ACT_GAME_WIN = allocate_mario_action(ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)
+hook_mario_action(ACT_GAME_WIN, act_game_win)
 
 -- lose animation
 --- @param m MarioState
-function act_shine_lose(m)
+function act_game_lose(m)
     if not m then return 0 end
 
     m.faceAngle.x = 0
@@ -302,8 +302,8 @@ function act_shine_lose(m)
     return false
 end
 
-ACT_SHINE_LOSE = allocate_mario_action(ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)
-hook_mario_action(ACT_SHINE_LOSE, act_shine_lose)
+ACT_GAME_LOSE = allocate_mario_action(ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE)
+hook_mario_action(ACT_GAME_LOSE, act_game_lose)
 
 -- sets the correct action based on who won or lost
 function set_dance_action()
@@ -317,11 +317,11 @@ function set_dance_action()
     if np then sMario = gPlayerSyncTable[np.localIndex] end
     if np2 then sMario2 = gPlayerSyncTable[np2.localIndex] end
     if np and (np.localIndex == 0 or (sMario.team ~= 0 and sMario.team == gPlayerSyncTable[0].team)) then
-        drop_and_set_mario_action(gMarioStates[0], ACT_SHINE_DANCE, 0)
+        drop_and_set_mario_action(gMarioStates[0], ACT_GAME_WIN, 0)
     elseif np2 and (np2.localIndex == 0 or (sMario2.team ~= 0 and sMario2.team == gPlayerSyncTable[0].team)) then
-        drop_and_set_mario_action(gMarioStates[0], ACT_SHINE_DANCE, 0)
+        drop_and_set_mario_action(gMarioStates[0], ACT_GAME_WIN, 0)
     else
-        drop_and_set_mario_action(gMarioStates[0], ACT_SHINE_LOSE, 0)
+        drop_and_set_mario_action(gMarioStates[0], ACT_GAME_LOSE, 0)
     end
     set_camera_mode(gMarioStates[0].area.camera, CAMERA_MODE_ROM_HACK, 0)
 end
