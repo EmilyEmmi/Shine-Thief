@@ -291,25 +291,123 @@ function lose_shine(index, dropType, attacker)
     return shine
 end
 
-function drop_shine(index, dropType, attacker)
-    if get_player_owned_shine(index) == 0 then return end
-    
-    if not network_is_server() then
-        -- send drop packet to server
-        local owner = nil
-        if index ~= nil then owner = network_global_index_from_local(index) end
-        local globalAttacker = nil
-        if attacker ~= nil then globalAttacker = network_global_index_from_local(attacker) end
-        network_send_to(1, true, {
-            id = PACKET_DROP_SHINE,
-            owner = owner,
-            dropType = dropType,
-            attacker = globalAttacker,
-        })
+function lose_balloon(dropType, attacker)
+    local sMario = gPlayerSyncTable[0]
+    if dropType == 2 then -- pass balloons
+        if sMario.balloons > 1 then
+            local m = gMarioStates[0]
+            local team = sMario.team
+            local minDist = 3000
+            local passChoice = -1
+            for i = 1, MAX_PLAYERS - 1 do
+                if gPlayerSyncTable[i].team == team and gPlayerSyncTable[i].balloons < 5 and (not gPlayerSyncTable[i].spectator) then
+                    local player = gMarioStates[i].marioObj
+                    local dist = dist_between_objects(m.marioObj, player)
+                    if minDist > dist then
+                        minDist = dist
+                        passChoice = i
+                    end
+                end
+            end
+
+            if passChoice ~= -1 then
+                sMario.balloons = sMario.balloons - 1
+                gPlayerSyncTable[passChoice].balloons = gPlayerSyncTable[passChoice].balloons + 1
+                if gPlayerSyncTable[passChoice].isBomb then
+                    gPlayerSyncTable[passChoice].isBomb = false
+                end
+            end
+        end
+        return
+    elseif dropType == 3 then
+        sMario.balloons = sMario.balloons - 1
+        if gPlayerSyncTable[attacker].balloons < 5 then
+            gPlayerSyncTable[attacker].balloons = gPlayerSyncTable[attacker].balloons + 1
+        end
     else
-        -- drop shine
-        lose_shine(index, dropType, attacker)
+        sMario.balloons = sMario.balloons - 1
     end
+
+    if sMario.balloons == 0 then
+        local gIndex = network_global_index_from_local(0)
+        if dropType ~= 1 then
+            go_to_mario_start(0, gIndex, true)
+        end
+
+        if gGlobalSyncTable.gameMode == 1 then
+            set_eliminated()
+            sMario.isBomb = true
+            sMario.item, sMario.itemUses = 0, 0
+            network_send_include_self(true, {
+                id = PACKET_BALLOON,
+                sender = network_global_index_from_local(0),
+                attacker = attacker and network_global_index_from_local(attacker),
+                sideline = true,
+            })
+        else
+            sMario.points = sMario.points // 2
+            sMario.balloons = 3
+            network_send_include_self(true, {
+                id = PACKET_BALLOON,
+                sender = gIndex,
+                attacker = attacker and network_global_index_from_local(attacker),
+                sideline = true,
+            })
+        end
+    elseif attacker then
+        network_send_to(attacker, true, {
+            id = PACKET_BALLOON,
+            sender = network_global_index_from_local(0),
+            attacker = network_global_index_from_local(attacker),
+        })
+        on_packet_balloon({
+            attacker = network_global_index_from_local(attacker),
+            sender = network_global_index_from_local(0),
+        }, true)
+    else
+        on_packet_balloon({
+            sender = network_global_index_from_local(0),
+        }, true)
+    end
+end
+
+function handle_hit(index, dropType, attacker)
+    if gGlobalSyncTable.gameMode == 0 then
+        if get_player_owned_shine(index) == 0 then return end
+        if not network_is_server() then
+            -- send drop packet to server
+            local owner = nil
+            if index ~= nil then owner = network_global_index_from_local(index) end
+            local globalAttacker = nil
+            if attacker ~= nil then globalAttacker = network_global_index_from_local(attacker) end
+            network_send_to(1, true, {
+                id = PACKET_handle_hit,
+                owner = owner,
+                dropType = dropType,
+                attacker = globalAttacker,
+            })
+        else
+            -- drop shine
+            lose_shine(index, dropType, attacker)
+        end
+    elseif gGlobalSyncTable.gameMode < 3 then
+        local sMario = gPlayerSyncTable[index]
+        if index == 0 and sMario.balloons ~= 0 and (not sMario.spectator) then
+            lose_balloon(dropType, attacker)
+        end
+    end
+end
+
+function set_eliminated()
+    local sMario = gPlayerSyncTable[0]
+    if sMario.eliminated ~= 0 then return end
+    local max = 2
+    for i=1,MAX_PLAYERS-1 do
+        if sMario.eliminated > max then
+            max = sMario.eliminated
+        end
+    end
+    sMario.eliminated = max
 end
 
 -- command to reset shine
@@ -539,7 +637,7 @@ function item_box_loop(o)
     o.oFaceAngleYaw = o.oFaceAngleYaw + 100
 
     local sMario = gPlayerSyncTable[m.playerIndex]
-    if o.oAction == 0 and o.oInteractStatus ~= 0 and m.playerIndex == 0 and sMario.item == 0 then
+    if o.oAction == 0 and o.oInteractStatus ~= 0 and m.playerIndex == 0 and sMario.item == 0 and (not sMario.isBomb) then
         cur_obj_change_action(1)
         o.oTimer = 0
         local item = random_item()

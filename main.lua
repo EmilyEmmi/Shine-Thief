@@ -25,7 +25,7 @@ gGlobalSyncTable.variant = 0
 gGlobalSyncTable.mapChoice = 0
 gGlobalSyncTable.items = 1
 gGlobalSyncTable.godMode = false
-gGlobalSyncTable.maxGameTime = 0
+gGlobalSyncTable.maxGameTime = 5
 
 gServerSettings.bubbleDeath = 0
 gServerSettings.skipIntro = 1
@@ -49,7 +49,6 @@ local modAttacker = 0
 
 altAbilityButtons = _G.OmmEnabled or false
 local shineFrameCounter = 0
-local showTimeTimer = 0
 SPECIAL_BUTTON = (altAbilityButtons and L_TRIG) or Y_BUTTON
 ITEM_BUTTON = (altAbilityButtons and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
 isRomHack = false
@@ -59,6 +58,9 @@ specialDown = false
 specialPressed = false
 renderItemExists = {}
 torsoTime = gMarioStates[0].marioBodyState.updateTorsoTime
+local mostBalls = -1
+local mostPoints = -1
+local willingSpectate = false
 
 -- team colors (first is palette, second is table for HUD color)
 TEAM_PALETTE = {
@@ -132,7 +134,18 @@ end
 
 -- enter spectator mode
 function spectator_mode()
+    willingSpectate = not willingSpectate
+
     local sMario = gPlayerSyncTable[0]
+    if sMario.eliminated ~= 0 and not sMario.isBomb then
+        if willingSpectate then
+            djui_chat_message_create("You'll still be spectating after this game.")
+        else
+            djui_chat_message_create("You'll unspectate at after this game.")
+        end
+        return
+    end
+
     sMario.spectator = not sMario.spectator
     if sMario.spectator then
         sMario.item = 0
@@ -143,10 +156,19 @@ function spectator_mode()
         gMarioStates[0].capTimer = 0
         stop_cap_music()
         if gGlobalSyncTable.gameState ~= 3 then
-            drop_shine(0, 1)
-            if sMario.team ~= 0 then
+            if gGlobalSyncTable.gameMode == 0 then
+                handle_hit(0, 1)
+            elseif gGlobalSyncTable.gameMode == 1 then
+                sMario.balloons = 0
+                sMario.eliminated = 1
+                sMario.isBomb = false
+            elseif gGlobalSyncTable.gameMode == 2 then
                 sMario.points = 0
                 sMario.balloons = 3
+            end
+
+            if sMario.team ~= 0 then
+                sMario.points = 0
                 sMario.team = 0
             end
         end
@@ -297,13 +319,18 @@ function mario_update(m)
     local np = gNetworkPlayers[m.playerIndex]
     local ownedShine = get_player_owned_shine(m.playerIndex)
 
+    if m.playerIndex == 0 then
+        mostPoints = -1
+        mostBalls = -1
+    end
+
     if m.playerIndex == 0 and gGlobalSyncTable.gameState == 3 and m.action ~= ACT_GAME_WIN and m.action ~= ACT_GAME_LOSE then
         drop_queued_background_music()
         fadeout_level_music(1)
         set_dance_action()
     end
 
-    -- cancel game if there aren't enough players
+    -- cancel double shine if there aren't enough players
     if m.playerIndex == 0 and network_is_server() and gGlobalSyncTable.gameMode == 0 and gGlobalSyncTable.variant == 1 and gGlobalSyncTable.gameState == 2 and get_participant_count() < 3 then
         gGlobalSyncTable.variant = 0
         new_game()
@@ -315,12 +342,12 @@ function mario_update(m)
             or m.hurtCounter > 0 or cappyStealer ~= 0 or modAttacker ~= 0)
         and m.playerIndex == 0 then
         if modAttacker ~= 0 then
-            drop_shine(0, 0, modAttacker)
+            handle_hit(0, 0, modAttacker)
             modAttacker = 0
         elseif cappyStealer == 0 then
-            drop_shine(0, 0)
+            handle_hit(0, 0)
         else
-            drop_shine(0, 3, cappyStealer)
+            handle_hit(0, 3, cappyStealer)
             cappyStealer = 0
         end
         m.hurtCounter = 0
@@ -363,16 +390,21 @@ function mario_update(m)
     if sMario.balloons == nil then sMario.balloons = 3 end
 
     -- set player colors + desc
-    if sMario.spectator then
+    if sMario.eliminated and sMario.eliminated > 1 and not sMario.isBomb then
+        network_player_set_description(np, "Lost", 255, 30, 30, 255)
+        if m.playerIndex == 0 then
+            sMario.spectator = true
+        end
+    elseif sMario.spectator then
         network_player_set_description(np, "Spectator", 128, 128, 128, 255)
-    elseif sMario.eliminated then
-        network_player_set_description(np, "Eliminated", 256, 30, 30, 255)
     else
         local desc = ""
         local highlight = false
         local extra
         local color = { r = 255, g = 64, b = 64, a = 255 } -- red
-        if gGlobalSyncTable.gameMode == 0 then
+        if sMario.isBomb then
+            desc = "Bomb"
+        elseif gGlobalSyncTable.gameMode == 0 then
             desc = tostring(sMario.points)
             if ownedShine ~= 0 then
                 highlight = true
@@ -389,16 +421,19 @@ function mario_update(m)
             end
         end
 
-        if sMario.team == 0 or sMario.team == nil then
-            np.overridePaletteIndex = np.paletteIndex
-            if highlight then
-                color = { r = 255, g = 255, b = 64, a = 255 } -- yellow
-            end
-        elseif TEAM_PALETTE[sMario.team] then
+        if sMario.team and sMario.team ~= 0 and TEAM_PALETTE[sMario.team] then
             np.overridePaletteIndex = TEAM_PALETTE[sMario.team][1]
             color = deep_copy(TEAM_PALETTE[sMario.team][2])
             extra = TEAM_PALETTE[sMario.team][3]
             if not highlight then color.a = 100 end
+        elseif sMario.isBomb then
+            np.overridePaletteIndex = np.paletteIndex
+            color = { r = 128, g = 64, b = 64, a = 255 } -- faint red
+        else
+            np.overridePaletteIndex = np.paletteIndex
+            if highlight then
+                color = { r = 255, g = 255, b = 64, a = 255 } -- yellow
+            end
         end
 
         -- set player descriptions
@@ -493,6 +528,19 @@ function mario_update(m)
         end
     end
 
+    -- showtime in balloon battle/attack
+    if gGlobalSyncTable.showTime and m.playerIndex == 0 and (gGlobalSyncTable.gameMode > 0 and gGlobalSyncTable.gameMode < 3) and sMario.eliminated == 0 then
+        if not has_most_points(0) then
+            sMario.balloons = 0
+            set_eliminated()
+            sMario.isBomb = true
+            sMario.item, sMario.itemUses = 0, 0
+            go_to_mario_start(0, np.globalIndex, true)
+        elseif sMario.balloons > 1 then
+            sMario.balloons = 1
+        end
+    end
+
     -- star effect
     if sMario.star then
         if m.playerIndex == 0 and m.capTimer == 0 then
@@ -548,14 +596,14 @@ function mario_update(m)
         end
     end
 
-    -- items and shine passing
-    if m.playerIndex == 0 and gGlobalSyncTable.gameState ~= 3 and (sMario.item ~= 0 or (gGlobalSyncTable.teamMode ~= 0 and ownedShine ~= 0)) then
+    -- items and shine/balloon passing
+    if m.playerIndex == 0 and gGlobalSyncTable.gameState ~= 3 and (sMario.item ~= 0 or gGlobalSyncTable.teamMode ~= 0) then
         local throwDir = throw_direction()
         if throwDir ~= 4 then
             if sMario.item ~= 0 then
                 sMario.item, sMario.itemUses = use_item(sMario.item, throwDir, sMario.itemUses)
-            else -- pass shine in team mode
-                drop_shine(0, 2)
+            else -- pass shine/balloons
+                handle_hit(0, 2)
             end
         end
     end
@@ -686,23 +734,88 @@ function mario_update(m)
             if m.playerIndex == 0 and network_is_server() then
                 gGlobalSyncTable.gameTimer = gGlobalSyncTable.gameTimer + 1
                 if DEBUG_MODE or gGlobalSyncTable.gameTimer > 300 then
-                    gGlobalSyncTable.gameTimer = 0
+                    gGlobalSyncTable.gameTimer = gGlobalSyncTable.maxGameTime * 1800
                     gGlobalSyncTable.gameState = 2
                 end
             elseif gGlobalSyncTable.gameTimer == 0 and m.marioObj.oTimer > 30 then -- fix desync
                 gGlobalSyncTable.gameState = 2
             end
         elseif gGlobalSyncTable.gameState == 2 and m.playerIndex == 0 and network_is_server() then
-            if showTimeTimer < gGlobalSyncTable.maxGameTime * 1800 then
-                showTimeTimer = showTimeTimer + 1
-                if showTimeTimer == gGlobalSyncTable.maxGameTime * 1800 - 300 then -- 10 seconds left
+            -- balloon vattle victory detection
+            if gGlobalSyncTable.gameMode == 1 or (gGlobalSyncTable.gameMode == 2 and gGlobalSyncTable.showTime) then
+                local winner = -1
+                local winningTeam = 0
+                local connected = 0
+                for i = 0, MAX_PLAYERS - 1 do
+                    local sMario = gPlayerSyncTable[i]
+                    if gNetworkPlayers[i].connected then
+                        connected = connected + 1
+                        if sMario.eliminated == 0 and (not sMario.spectator) then
+                            if winner ~= -1 then
+                                if winningTeam == 0 or sMario.team ~= winningTeam then
+                                    winner = -1
+                                    break
+                                end
+                            else
+                                winningTeam = sMario.team
+                                winner = network_global_index_from_local(i)
+                            end
+                        end
+                    end
+                end
+
+                if connected > 1 and winner ~= -1 then
+                    network_send_include_self(true, {
+                        id = PACKET_VICTORY,
+                        winner = winner,
+                        winner2 = -1,
+                    })
+                end
+            end
+
+            if gGlobalSyncTable.gameTimer > 0 then
+                gGlobalSyncTable.gameTimer = gGlobalSyncTable.gameTimer - 1
+                if gGlobalSyncTable.gameMode ~= 2 and gGlobalSyncTable.gameTimer == 300 then -- 10 seconds left
                     djui_popup_create_global("10 seconds until Showtime!", 1)
                 end
             elseif gGlobalSyncTable.showTime == false then
-                gGlobalSyncTable.showTime = true
-                network_send_include_self(true, {
-                    id = PACKET_SHOWTIME,
-                })
+                if gGlobalSyncTable.gameMode ~= 2 then
+                    gGlobalSyncTable.showTime = true
+                    network_send_include_self(true, {
+                        id = PACKET_SHOWTIME,
+                    })
+                else
+                    local winner = -1
+                    local winningTeam = 0
+                    mostPoints = -1
+                    for i = 0, MAX_PLAYERS - 1 do
+                        local sMario = gPlayerSyncTable[i]
+                        if gNetworkPlayers[i].connected and sMario.eliminated == 0 and (not sMario.spectator) and has_most_points(i) then
+                            if winner ~= -1 then
+                                if winningTeam == 0 or sMario.team ~= winningTeam then
+                                    winner = -1
+                                    break
+                                end
+                            else
+                                winningTeam = sMario.team
+                                winner = network_global_index_from_local(i)
+                            end
+                        end
+                    end
+
+                    if winner ~= -1 then
+                        network_send_include_self(true, {
+                            id = PACKET_VICTORY,
+                            winner = winner,
+                            winner2 = -1,
+                        })
+                    else
+                        gGlobalSyncTable.showTime = true
+                        network_send_include_self(true, {
+                            id = PACKET_SHOWTIME,
+                        })
+                    end
+                end
             end
         end
     else
@@ -756,37 +869,76 @@ function get_shine_owner(shine)
     return -1
 end
 
-local mostBalls = -1
 function has_most_balloons(index)
-    if mostBalls ~= -1 then return gPlayerSyncTable[index].balloons >= mostBalls end
+    if mostBalls ~= -1 then
+        local sMario = gPlayerSyncTable[index]
+        return gNetworkPlayers[index].connected and (sMario.eliminated == 0 and (not sMario.spectator)) and
+            sMario.balloons >= mostBalls
+    end
 
     local hasMost = false
     for i = 0, MAX_PLAYERS - 1 do
-        local points = gPlayerSyncTable[i].balloons
-        if points > mostBalls then
-            hasMost = (i == index)
-            mostBalls = points
-        elseif points == mostBalls and i == index then
-            hasMost = true
+        local sMario = gPlayerSyncTable[i]
+        if gNetworkPlayers[i].connected and (sMario.eliminated == 0 and (not sMario.spectator)) then
+            local points = sMario.balloons
+            if points > mostBalls then
+                hasMost = (i == index)
+                mostBalls = points
+            elseif points == mostBalls and i == index then
+                hasMost = true
+            end
         end
     end
     return hasMost
 end
 
-local mostPoints = -1
 function has_most_points(index)
-    if mostPoints ~= -1 then return gPlayerSyncTable[index].points >= mostPoints end
+    local sMario = gPlayerSyncTable[index]
+    if not (gNetworkPlayers[index].connected and (sMario.eliminated == 0 and (not sMario.spectator))) then return false end
 
+    local myPoints = sMario.points
+    local myTeam = sMario.team or 0
+    if mostPoints ~= -1 and myTeam == 0 then
+        return myPoints >= mostPoints
+    end
+
+    local teamPoints = {}
     local hasMost = false
     for i = 0, MAX_PLAYERS - 1 do
-        local points = gPlayerSyncTable[i].points
-        if points > mostPoints then
-            hasMost = (i == index)
-            mostPoints = points
-        elseif points == mostPoints and i == index then
-            hasMost = true
+        local sMario = gPlayerSyncTable[i]
+        if gNetworkPlayers[i].connected and (sMario.eliminated == 0 and (not sMario.spectator)) then
+            if (not sMario.team) or sMario.team == 0 then
+                local points = sMario.points
+                if points > mostPoints then
+                    hasMost = (i == index)
+                    mostPoints = points
+                elseif points == mostPoints and i == index then
+                    hasMost = true
+                end
+            else
+                if not teamPoints[sMario.team] then
+                    teamPoints[sMario.team] = 0
+                end
+                teamPoints[sMario.team] = teamPoints[sMario.team] + sMario.points
+            end
         end
     end
+
+    if myTeam ~= 0 then
+        if mostPoints ~= -1 then
+            return teamPoints[sMario.team] >= mostPoints
+        else
+            for team,points in pairs(teamPoints) do
+                if points > mostPoints then
+                    hasMost = (team == myTeam)
+                    mostPoints = points
+                elseif points == mostPoints and team == myTeam then
+                    hasMost = true
+                end
+            end
+        end
+    end
+    
     return hasMost
 end
 
@@ -990,11 +1142,11 @@ function on_pvp_attack(attacker, victim, cappyAttack, item)
                     cappyStealer = attacker.playerIndex
                     return
                 end
-                return drop_shine(victim.playerIndex, 3, attacker.playerIndex)
+                return handle_hit(victim.playerIndex, 3, attacker.playerIndex)
             end
         end
 
-        return drop_shine(victim.playerIndex, 0, attacker.playerIndex)
+        return handle_hit(victim.playerIndex, 0, attacker.playerIndex)
     end
 end
 
@@ -1025,7 +1177,7 @@ end
 
 -- drop shine on death (runs when falling)
 function on_death(m)
-    drop_shine(m.playerIndex, 1)
+    handle_hit(m.playerIndex, 1)
     go_to_mario_start(m.playerIndex, gNetworkPlayers[m.playerIndex].globalIndex, true)
     return false
 end
@@ -1035,7 +1187,7 @@ hook_event(HOOK_ON_DEATH, on_death)
 function on_pause_exit(exitToCastle)
     if gGlobalSyncTable.gameState ~= 3 then
         go_to_mario_start(0, gNetworkPlayers[0].globalIndex, true)
-        drop_shine(0, 1)
+        handle_hit(0, 1)
     end
     return false
 end
@@ -1224,6 +1376,8 @@ function on_sync_valid()
 
         sMario.points = 0
         sMario.balloons = 3
+        sMario.eliminated = 0
+        sMario.isBomb = false
         sMario.specialCooldown = 0
         sMario.boostTime = 0
         sMario.item = 0
@@ -1515,7 +1669,6 @@ function on_packet_new_game(data, self)
         vote_pick_random_levels(type(gGlobalSyncTable.gameLevel) == "number")
     end
 
-    showTimeTimer = 0
     if not self then
         setup_level_data(gGlobalSyncTable.gameLevel)
     end
@@ -1526,6 +1679,13 @@ function on_packet_new_game(data, self)
     for i = 0, MAX_PLAYERS - 1 do
         gPlayerSyncTable[i].points = 0
         gPlayerSyncTable[i].balloons = 3
+        gPlayerSyncTable[i].spectator = willingSpectate
+        if gGlobalSyncTable.gameMode == 1 and willingSpectate then
+            gPlayerSyncTable[i].eliminated = 1
+        else
+            gPlayerSyncTable[i].eliminated = 0
+        end
+        gPlayerSyncTable[i].isBomb = false
         gPlayerSyncTable[i].specialCooldown = 0
         gPlayerSyncTable[i].myVote = 0
         if data.teams == 0 then
@@ -1563,14 +1723,28 @@ end
 function on_packet_grab_shine(data, self)
     local np = network_player_from_global_index(data.grabbed)
     local playerColor = network_get_player_text_color_string(np.localIndex)
+    local grabberName = playerColor
+    if np.localIndex ~= 0 then
+        grabberName = grabberName .. np.name
+    else
+        grabberName = grabberName .. "You"
+    end
+
     if not data.stealer then
-        djui_popup_create(playerColor .. np.name .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
+        djui_popup_create(grabberName .. "\\#ffffff\\ stole the \\#ffff40\\Shine\\#ffffff\\!", 1)
     else
         local aNP = network_player_from_global_index(data.stealer)
-        local aPlayerColor = network_get_player_text_color_string(np.localIndex)
+        local aPlayerColor = network_get_player_text_color_string(aNP.localIndex)
+        local attackerName = aPlayerColor
+        if aNP.localIndex ~= 0 then
+            attackerName = attackerName .. np.name
+        else
+            attackerName = attackerName .. "You"
+        end
+
         djui_popup_create(
-            string.format("%s\\#ffffff\\ stole %s's \\#ffff40\\Shine\\#ffffff\\!", aPlayerColor .. aNP.name,
-                playerColor .. np.name), 1)
+            string.format("%s\\#ffffff\\ stole %s's \\#ffff40\\Shine\\#ffffff\\!", attackerName,
+                grabberName), 1)
     end
 
     gMarioStates[np.localIndex].invincTimer = math.max(gMarioStates[np.localIndex].invincTimer, 60) -- is halved in code
@@ -1578,7 +1752,7 @@ function on_packet_grab_shine(data, self)
     audio_sample_play(SOUND_SHINE_GRAB, gMarioStates[0].marioObj.header.gfx.cameraToObject, 1)
 end
 
-function on_packet_drop_shine(data, self)
+function on_packet_handle_hit(data, self)
     -- no need to convert global indexes to local indexes, as global indexes are
     -- local indexes for the server
     --local owner = network_local_index_from_global(data.owner)
@@ -1644,6 +1818,50 @@ function on_packet_pow_block(data, self)
     end
 end
 
+function on_packet_balloon(data, self)
+    local np = network_player_from_global_index(data.sender)
+    local playerColor = network_get_player_text_color_string(np.localIndex)
+    local victimName = playerColor
+    if np.localIndex ~= 0 then
+        victimName = victimName .. np.name
+    else
+        victimName = victimName .. "You"
+    end
+
+    if data.attacker then
+        local aNP = network_player_from_global_index(data.attacker)
+        local aPlayerColor = network_get_player_text_color_string(aNP.localIndex)
+        local attackerName = aPlayerColor
+        if aNP.localIndex ~= 0 then
+            attackerName = attackerName .. np.name
+        else
+            attackerName = attackerName .. "You"
+        end
+
+        if data.sideline then
+            djui_popup_create(string.format("%s\\#ffffff\\ sidelined %s\\#ffffff\\!", attackerName, victimName), 1)
+            if aNP.localIndex == 0 then
+                gPlayerSyncTable[0].points = gPlayerSyncTable[0].points + 3
+            end
+        else
+            djui_popup_create(string.format("%s\\#ffffff\\ hit %s\\#ffffff\\!", attackerName, victimName), 1)
+            if aNP.localIndex == 0 then
+                gPlayerSyncTable[0].points = gPlayerSyncTable[0].points + 1
+            end
+        end
+    else
+        if data.sideline then
+            if np.localIndex ~= 0 then
+                djui_popup_create(string.format("%s\\#ffffff\\ was sidelined!", victimName), 1)
+            else
+                djui_popup_create(string.format("%s\\#ffffff\\ were sidelined!", victimName), 1)
+            end
+        else
+            djui_popup_create(string.format("%s\\#ffffff\\ were hit!", victimName), 1) -- will always be you
+        end
+    end
+end
+
 function on_packet_receive(data)
     if sPacketTable[data.id] ~= nil then
         sPacketTable[data.id](data, false)
@@ -1655,18 +1873,20 @@ hook_event(HOOK_ON_PACKET_RECEIVE, on_packet_receive)
 PACKET_VICTORY = 1
 PACKET_NEWGAME = 2
 PACKET_GRAB_SHINE = 3
-PACKET_DROP_SHINE = 4
+PACKET_handle_hit = 4
 PACKET_RESET_SHINE = 5
 PACKET_SHOWTIME = 6
 PACKET_MOVE_SHINE = 7
 PACKET_POW_BLOCK = 8
+PACKET_BALLOON = 9
 sPacketTable = {
     [PACKET_VICTORY] = on_packet_victory,
     [PACKET_NEWGAME] = on_packet_new_game,
     [PACKET_GRAB_SHINE] = on_packet_grab_shine,
-    [PACKET_DROP_SHINE] = on_packet_drop_shine,
+    [PACKET_handle_hit] = on_packet_handle_hit,
     [PACKET_RESET_SHINE] = on_packet_reset_shine,
     [PACKET_SHOWTIME] = on_packet_showtime,
     [PACKET_MOVE_SHINE] = on_packet_move_shine,
     [PACKET_POW_BLOCK] = on_packet_pow_block,
+    [PACKET_BALLOON] = on_packet_balloon,
 }

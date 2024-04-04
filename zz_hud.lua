@@ -65,12 +65,16 @@ local tip_game_mode = {
         "Tip: You'll be eliminated if you lose all of your balloons.",
         "Tip: Elimination will turn you into a Bob-Omb. You can explode another player!",
         "Tip: You can steal a Balloon by slide-kicking into another player.",
+        "Tip: You can have up to 5 balloons.",
+        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to give a balloon to a nearby teammate.",
         "After GAME_TIME, everyone will be left with one balloon.",
     },
     { -- Balloon Attack
         "Tip: You'll lose half of your points if you lose all of your Balloons.",
         "Tip: You'll get 3 points for sidelining a player.",
-        "Tip: You can steal a Balloon by slide-kicking into another player."
+        "Tip: You can steal a Balloon by slide-kicking into another player.",
+        "Tip: You can have up to 5 balloons.",
+        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to give a balloon to a nearby teammate.",
     },
 }
 local tip_variant = {
@@ -155,10 +159,7 @@ local DEFAULT_MAP_SIZE = 8192
 local menu_data = {
     [1] = {
         { "Continue", function() inMenu = false end },
-        { "Respawn", function()
-            on_pause_exit(false)
-            inMenu = false
-        end },
+        { "Respawn", function() on_pause_exit(false) inMenu = false end },
         { "Spectate", function() spectator_mode() end },
         { "Restart",  function() new_game() end,      true },
         { "New Game", function() enter_menu(3) end,   true },
@@ -408,8 +409,20 @@ function on_hud_render()
         for i = 0, (MAX_PLAYERS - 1) do
             local np = gNetworkPlayers[i]
             local sMario = gPlayerSyncTable[i]
-            if np.connected and ((not sMario.spectator) or get_player_owned_shine(i) ~= 0) then
-                table.insert(playerScore, { i, sMario.points or 0 })
+            if np.connected then
+                if gGlobalSyncTable.gameMode == 0 then
+                    if (not sMario.spectator) or get_player_owned_shine(i) ~= 0 then
+                        table.insert(playerScore, { i, sMario.points or 0 })
+                    end
+                elseif gGlobalSyncTable.gameMode == 1 then
+                    if sMario.eliminated == 0 then
+                        table.insert(playerScore, { i, 9999 })
+                    else
+                        table.insert(playerScore, { i, sMario.eliminated or 1 })
+                    end
+                elseif gGlobalSyncTable.gameMode == 2 then
+                    table.insert(playerScore, { i, sMario.points or 0 })
+                end
             end
         end
         table.sort(playerScore, function(a, b)
@@ -1705,6 +1718,9 @@ function menu_set_settings(load)
         menuVariant = load_setting("variant") or 0
         if menuVariant > (#variant_list - 2) then menuVariant = 0 end
         menuGameMode = load_setting("gameMode") or 0
+        if menuGameMode ~= -1 then
+            gGlobalSyncTable.gameMode = menuGameMode
+        end
         gGlobalSyncTable.mapChoice = load_setting("mapChoice") or 0
         gGlobalSyncTable.items = load_setting("items") or 1
         gGlobalSyncTable.maxGameTime = load_setting("maxGameTime") or 5
