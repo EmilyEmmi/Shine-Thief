@@ -229,7 +229,7 @@ levelData = {
         noWater = true,
         name = "Deep Cave",
         room = 6,
-        maxHeight = -10,
+        maxHeight = -2000,
 
         startLocations = {
             [0] = { -790, -3279, 6290 },
@@ -937,6 +937,7 @@ levelData = {
         area = 1,
         tex = "painting_24",
         levelSize = 3021,
+        maxHeight = 10000, -- just for coin rush
         romhack_cam = true,
         noWater = true,
 
@@ -1105,7 +1106,7 @@ function setup_level_data(level)
         thisLevel.startLocations = arenaSpawnLocations
     end
     arenaSpawnLocations = {}
-    if arenaItemBoxLocations and #arenaItemBoxLocations > 0 then
+    if arenaItemBoxLocations and #arenaItemBoxLocations ~= 0 then
         thisLevel.itemBoxLocations = arenaItemBoxLocations
     end
     arenaItemBoxLocations = {}
@@ -1137,8 +1138,10 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
         if not DEBUG_MODE then
             pos[1] = pos[1] + ((globalIndex) % 4) * 100 - 150
             pos[3] = pos[3] + ((globalIndex) // 4) * 100 - 150
+            if (not spawning) and gGlobalSyncTable.gameMode > 0 and gGlobalSyncTable.gameMode < 3 then return end
         end
     end
+
     m.pos.x = pos[1]
     if spawning then
         m.pos.y = pos[2]
@@ -1169,15 +1172,40 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             save_file_set_flags(SAVE_FLAG_MOAT_DRAINED)
             save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
             save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
-
-            gPlayerSyncTable[0].item = 0
-            gPlayerSyncTable[0].itemUses = 0
+            
+            gPlayerSyncTable[0].bulletTimer = 0
+            gPlayerSyncTable[0].star = false
             gPlayerSyncTable[0].mushroomTime = 0
             gMarioStates[0].capTimer = 0
             stop_cap_music()
         end
     end
     m.pos.z = pos[3]
+end
+
+-- gets a random positon in the level
+function random_valid_pos(y_, o)
+    local y = y_ or 2000
+    y = y + 2000
+    local max = (thisLevel and thisLevel.levelSize) or 8972
+    y = (thisLevel and thisLevel.maxHeight) or y
+    y = y - 300
+    local x = math.random(-max, max)
+    local z = math.random(-max, max)
+    if o then
+        o.oPosX, o.oPosY, o.oPosZ = x, y, z
+        cur_obj_update_floor()
+        local LIMIT = 50
+        while is_hazard_floor(o.oFloorType) and LIMIT > 0 do
+            LIMIT = LIMIT - 1
+            x = math.random(-max, max)
+            z = math.random(-max, max)
+            o.oPosX, o.oPosY, o.oPosZ = x, y, z
+            cur_obj_update_floor()
+        end
+        y = o.oFloorHeight + 120
+    end
+    return x, y, z
 end
 
 -- forces rom hack camera

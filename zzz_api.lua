@@ -10,8 +10,14 @@ _G.ShineThief = {
         return gPlayerSyncTable[index].team or 0
     end,
 
+    -- includes players that have lost and are no longer bombs as well as willing spectators
     get_spectator = function(index)
-        return gPlayerSyncTable[index].spectator or false
+        return is_spectator(index)
+    end,
+
+    -- includes players that have lost (bombs or not) as well as willing spectators
+    get_dead = function(index)
+        return is_dead(index)
     end,
 
     get_held_shine = function(index) -- returns 0 if no shine, 1 for the main shine, and 2 for the other shine in Double Shine
@@ -74,6 +80,32 @@ _G.ShineThief = {
         SPECIAL_BUTTON = (altAbilityButtons and L_TRIG) or Y_BUTTON
         ITEM_BUTTON = (altAbilityButtons and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
         set_alt_ability_strings(set)
+    end,
+
+    get_gamemode = function() -- returns gamemode (list in zz_hud)
+        return gGlobalSyncTable.gameMode
+    end,
+
+    is_eliminated = function(index) -- 0 if not eliminated (other number is based on when elimination occured)
+        return gPlayerSyncTable[index].eliminated or 0
+    end,
+
+    is_bomb = function(index) -- bool
+        return gPlayerSyncTable[index].isBomb or false
+    end,
+
+    -- adds a new item, see item.lua for information; returns item id
+    -- IMPORTANT: add a field called "tex" set to the texture you want to appear in the item preview
+    add_item = function(data)
+        table.insert(item_data, data)
+        return #item_data
+    end,
+
+    -- returns if two players are on different teams (also true if either is neutral)
+    on_different_teams = function(index, index2)
+        local team = gPlayerSyncTable[index].team
+        local team2 = gPlayerSyncTable[index2].team
+        return team == 0 or team2 == 0 or team ~= team2
     end,
 
     -- actions

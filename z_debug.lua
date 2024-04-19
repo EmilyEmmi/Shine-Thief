@@ -15,7 +15,7 @@ function add_spot(msg)
         end
 
         return true
-    elseif msg == "back" and #start_spots > 0 then
+    elseif msg == "back" and #start_spots ~= 0 then
         table.remove(start_spots, #start_spots)
         djui_chat_message_create("removed last spot")
 
@@ -125,7 +125,7 @@ function add_obj_spot(msg)
         end
 
         return true
-    elseif args[1] == "remove" and #obj_spots > 0 then
+    elseif args[1] == "remove" and #obj_spots ~= 0 then
         table.remove(obj_spots, #obj_spots)
         djui_chat_message_create("removed last "..objName)
 
@@ -213,7 +213,7 @@ function add_item_spot(msg)
         end
 
         return true
-    elseif args[1] == "remove" and #item_spots > 0 then
+    elseif args[1] == "remove" and #item_spots ~= 0 then
         table.remove(item_spots, #item_spots)
         djui_chat_message_create("removed last item box")
 
@@ -274,7 +274,7 @@ function print_data(msg)
         text = text .. string.format("\t\t[%d] = {%d, %d, %d},\n",i-1,v[1] or 0, v[2] or 0, v[3] or 0)
     end
     text = text .. string.format("\t},\n\tshineStart = {%d, %d, %d},",shine_spot[1],shine_spot[2],shine_spot[3])
-    if obj_spots and #obj_spots > 0 then
+    if obj_spots and #obj_spots ~= 0 then
         text = text .. "\n\n\tobjLocations = {\n"
         for i,v in ipairs(obj_spots) do
             local yaw = (v[9] and string.format("0x%x",math.abs(v[9])) or 0)
@@ -285,7 +285,7 @@ function print_data(msg)
         end
         text = text .. "\t},"
     end
-    if item_spots and #item_spots > 0 then
+    if item_spots and #item_spots ~= 0 then
         text = text .. "\n\n\titemBoxLocations = {\n"
         for i,v in ipairs(item_spots) do
             text = text .. string.format("\t\t{%d, %d, %d},\n",v[1] or 0, v[2] or 0, v[3] or 0)
@@ -336,6 +336,13 @@ function give_item(msg)
     local num = tonumber(msg) or 9
     gPlayerSyncTable[0].item = num
     gPlayerSyncTable[0].itemUses = 0
+    shuffleItem = 0
+    return true
+end
+
+function toggle_elim()
+    gPlayerSyncTable[0].eliminated = ((gPlayerSyncTable[0].eliminated == 0) and 1) or 0 
+    gPlayerSyncTable[0].isBomb = gPlayerSyncTable[0].eliminated ~= 0
     return true
 end
 
@@ -398,8 +405,8 @@ for i,mod in pairs(gActiveMods) do
         end
     end
 end
-if network_is_server() and cheatsOn then
-    gServerSettings.enableCheats = 1 -- allows debug free move to work
+if cheatsOn then
+    DEBUG_MODE = true
     hook_chat_command("spot","[BACK] - set this spot as a start",add_spot)
     hook_chat_command("shine","[EXACT] - set this spot as the shine's start",add_shine_start)
     hook_chat_command("obj","[ADD|REMOVE|RESET,OBJ,YOFFSET,PARAM1|SHINE,PARAM2,PITCH,YAW] - place or remove objects",add_obj_spot)
@@ -408,6 +415,7 @@ if network_is_server() and cheatsOn then
     hook_chat_command("round","[NUM] - round mario's pos",round_pos)
     hook_chat_command("angle","[NUM] - round mario's angle",round_angle)
     hook_chat_command("item","[NUM] - give yourself this item",give_item)
+    hook_chat_command("die"," - toggle eliminated state",toggle_elim)
     hook_chat_command("itembox","[ADD|REMOVE|RESET,YOFFSET] - place or remove item boxes",add_item_spot)
     djui_popup_create("Cheats Detected - Debug mode has been unlocked!",1)
 end

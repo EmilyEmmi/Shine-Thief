@@ -337,7 +337,9 @@ function before_set_mario_action(m, action)
         return 1
     end
 
-    if action == ACT_QUICKSAND_DEATH then
+    if (action == ACT_BURNING_JUMP or action == ACT_BURNING_FALL or action == ACT_BURNING_GROUND) and m.marioObj.oMarioBurnTimer == 0 then
+        m.hurtCounter = m.hurtCounter + 0xB -- regular damage
+    elseif action == ACT_QUICKSAND_DEATH then
         m.hurtCounter = m.hurtCounter + 0xB
         return ACT_LAVA_BOOST
     elseif action == ACT_LAVA_BOOST and thisLevel and thisLevel.badLava then
@@ -345,11 +347,11 @@ function before_set_mario_action(m, action)
             on_death(m)
         end
         return 1
-    elseif action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                                             -- transition into punch from water shell
+    elseif action == ACT_WATER_THROW and m.action == ACT_WATER_SHELL_SWIMMING then                                                                                                               -- transition into punch from water shell
         return ACT_WATER_PUNCH
-    elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                                    -- transition from punch back into water shell
+    elseif action == ACT_WATER_ACTION_END and m.action == ACT_WATER_PUNCH and m.prevAction == ACT_WATER_SHELL_SWIMMING then                                                                      -- transition from punch back into water shell
         return ACT_WATER_SHELL_SWIMMING
-    elseif action == ACT_DIVE and (not using_omm_moveset(m.playerIndex)) and m.action ~= ACT_WALL_KICK_AIR and (m.intendedMag < 2 or limit_angle(m.intendedYaw - m.faceAngle.y) > 0x4000) then -- make kicking easier
+    elseif action == ACT_DIVE and (not using_omm_moveset(m.playerIndex)) and m.action ~= ACT_WALL_KICK_AIR and (m.intendedMag < 2 or abs_angle_diff(m.intendedYaw, m.faceAngle.y) > 0x4000) then -- make kicking easier
         if m.action == ACT_WALKING then
             return ACT_MOVE_PUNCHING
         end
@@ -360,6 +362,7 @@ end
 hook_event(HOOK_BEFORE_SET_MARIO_ACTION, before_set_mario_action)
 
 function allow_hazard_surface(m, type)
+    if (thisLevel and thisLevel.badLava) then return true end
     if gGlobalSyncTable.godMode then return false end
     if gPlayerSyncTable[m.playerIndex].star then return false end
     if m.floor and type == HAZARD_TYPE_QUICKSAND and m.floor.type ~= SURFACE_INSTANT_QUICKSAND and m.floor.type ~= SURFACE_INSTANT_MOVING_QUICKSAND then return false end -- disable slow quicksand
@@ -371,8 +374,9 @@ hook_event(HOOK_ALLOW_HAZARD_SURFACE, allow_hazard_surface)
 --- @param m MarioState
 --- @param o Object
 function allow_interact(m, o, type)
-    if gPlayerSyncTable[m.playerIndex].spectator then return (type == INTERACT_POLE) end
-    if type == INTERACT_WARP and o ~= id_bhvSTPipe then return false end
+    if is_spectator(m.playerIndex) then return (type == INTERACT_POLE or o.behavior == get_behavior_from_id(id_bhvSTPipe)) end
+    if type == INTERACT_COIN and gPlayerSyncTable[m.playerIndex].isBomb then return false end
+    if type == INTERACT_WARP then return false end
     if type == INTERACT_WARP_DOOR then return false end
     if type == INTERACT_STAR_OR_KEY then return false end
     if type == INTERACT_TEXT then return false end
@@ -382,11 +386,27 @@ function allow_interact(m, o, type)
         m.flags = m.flags | MARIO_METAL_CAP
         return true
     elseif (type == INTERACT_DAMAGE or type == INTERACT_CLAM_OR_BUBBA or type == INTERACT_FLAME or type == INTERACT_SHOCK or type == INTERACT_MR_BLIZZARD) then
-        if gPlayerSyncTable[m.playerIndex].star then
-            return false
-        elseif is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
+        if is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
             local np = network_player_from_global_index(o.oObjectOwner)
-            return (np and np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], true))
+            local valid = (np and np.localIndex ~= 0 and allow_pvp_attack(gMarioStates[np.localIndex], gMarioStates[0], true))
+            if get_id_from_behavior(o.behavior) == id_bhvBlueShell and o.oAction == 3 then -- blue shell dodging (also handles hitting self)
+                if gPlayerSyncTable[m.playerIndex].mushroomTime >= 55 then                 -- 5 frame window (you have to move too)
+                    valid = false
+                elseif np.localIndex == 0 then
+                    valid = true
+                end
+            end
+
+            if valid and gPlayerSyncTable[m.playerIndex].star then
+                o.oInteractStatus = o.oInteractStatus | ATTACK_PUNCH | INT_STATUS_WAS_ATTACKED | INT_STATUS_INTERACTED |
+                INT_STATUS_TOUCHED_BOB_OMB
+                return false
+            end
+            return valid
+        elseif gPlayerSyncTable[m.playerIndex].star then
+            o.oInteractStatus = o.oInteractStatus | ATTACK_PUNCH | INT_STATUS_WAS_ATTACKED | INT_STATUS_INTERACTED |
+            INT_STATUS_TOUCHED_BOB_OMB
+            return false
         end
     end
 end
@@ -396,22 +416,30 @@ hook_event(HOOK_ALLOW_INTERACT, allow_interact)
 --- @param m MarioState
 --- @param o Object
 function on_interact(m, o, type, value)
-    if type == INTERACT_BOUNCE_TOP or type == INTERACT_BOUNCE_TOP2 or type == INTERACT_SNUFIT_BULLET or type == INTERACT_UNKNOWN_08 or type == INTERACT_KOOPA or type == INTERACT_HIT_FROM_BELOW then
+    if type == INTERACT_COIN then
+        if m.playerIndex == 0 then
+            local sMario = gPlayerSyncTable[m.playerIndex]
+            sMario.points = sMario.points + o.oDamageOrCoinValue
+        end
+    elseif type == INTERACT_BOUNCE_TOP or type == INTERACT_BOUNCE_TOP2 or type == INTERACT_SNUFIT_BULLET or type == INTERACT_UNKNOWN_08 or type == INTERACT_KOOPA or type == INTERACT_HIT_FROM_BELOW then
         if gPlayerSyncTable[m.playerIndex].star then
             m.flags = m.flags & ~MARIO_METAL_CAP
         end
     elseif m.playerIndex == 0 and (type == INTERACT_DAMAGE or type == INTERACT_FLAME) and is_item(get_id_from_behavior(o.behavior)) and o.oObjectOwner then
-        if m.invincTimer > 0 or m.interactObj ~= o then return end
+        if m.invincTimer > 0 or m.flags & MARIO_VANISH_CAP ~= 0 or o.oInteractStatus & INT_STATUS_INTERACTED == 0 or (type ~= INTERACT_FLAME and o.oInteractStatus & INT_STATUS_ATTACKED_MARIO == 0) then return end
         local np = network_player_from_global_index(o.oObjectOwner or 0)
+        if np.localIndex == 0 then return end
         on_pvp_attack(gMarioStates[np.localIndex], m, false, true)
         m.hurtCounter = 0
-        network_send_object(o, true) -- sync interaction (sometimes causes errors, but there's nothing we can do)
-    elseif m.playerIndex == 0 and type == INTERACT_PLAYER and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and m.invincTimer == 0 then
+    elseif m.playerIndex == 0 and type == INTERACT_PLAYER and m.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) == 0 and m.invincTimer == 0 and m.flags & MARIO_VANISH_CAP == 0 then
         local sMario = gPlayerSyncTable[m.playerIndex]
         if sMario.bulletTimer and sMario.bulletTimer ~= 0 then
             return set_mario_action(m, ACT_FREEFALL, 0) -- explode on other players
         end
-        -- hurt when trying to attack star players
+
+        if sMario.isBomb or sMario.star then return end
+
+        -- hurt when trying to attack star or bomb players
         local m2
         for i = 0, MAX_PLAYERS - 1 do
             if o == gMarioStates[i].marioObj then
@@ -421,12 +449,24 @@ function on_interact(m, o, type, value)
             end
         end
         if not m2 then return end
-        if m2.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) ~= 0 or m2.invincTimer ~= 0 then return end
-        if gPlayerSyncTable[m2.playerIndex].star and not sMario.star then
+        local sMario2 = gPlayerSyncTable[m2.playerIndex]
+        if sMario.team ~= 0 and sMario2.team ~= 0 and sMario2.team == sMario.team then return end
+        if m2.action & (ACT_FLAG_INTANGIBLE | ACT_FLAG_INVULNERABLE | ACT_GROUP_CUTSCENE) ~= 0 or m2.invincTimer ~= 0 or m2.flags & MARIO_VANISH_CAP ~= 0 then return end
+        if sMario2.star then
             if take_damage_and_knock_back(m, o) ~= 0 then
                 on_pvp_attack(m2, m)
                 m.hurtCounter = 0
-                m.invincTimer = math.max(m.invincTimer, 30)
+                m.invincTimer = math.max(m.invincTimer, 90)
+            end
+            return
+        elseif sMario2.isBomb and m2.action ~= ACT_SPAWN_SPIN_AIRBORNE then
+            if take_damage_and_knock_back(m, o) ~= 0 then
+                on_pvp_attack(m2, m)
+                m.hurtCounter = 0
+                m.invincTimer = math.max(m.invincTimer, 90)
+                network_send_to(m2.playerIndex, true, {
+                    id = PACKET_BOMB_HIT
+                })
             end
             return
         end

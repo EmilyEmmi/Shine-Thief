@@ -12,6 +12,7 @@ local menuTeam = 0
 local menuVariant = 0
 local menuGameMode = 0
 
+local prevPointCount = 0
 local prevTimerNum = {}
 local localGameTimer = 0
 local frameCounter = 0
@@ -19,6 +20,10 @@ local currTip
 local doVoteCalc = true
 local votesNumber = { 0, 0, 0 }
 local voteScreenTimer = 0
+local rItem = 0
+
+local leadBoardData = {}
+local teamLeadBoardData = {}
 
 local menu_history = {}
 local variant_list = {
@@ -31,12 +36,15 @@ local variant_list = {
     "\\#ff0051\\Boost To Win",
     "\\#b0aca9\\Bombs!!!",
     "\\#9000ff\\Air + Boost",
+    "\\#ff3700\\Fire Power",
+    "\\#fbffc7\\Double Jump",
 }
 local variant_special_list = {
     "Mode-Specific",
-    "\\#ff9040\\Double Shine", 
+    "\\#ff9040\\Double Shine",
     "\\#ff00ea\\Blowout",
     "\\#ff00ea\\Blowout",
+    "\\#c49316\\Greed",
 }
 
 local tip_general = {
@@ -48,7 +56,9 @@ local tip_general = {
     "Tip: You can enter Spectator Mode in the menu.",
     "Tip: Turn on God Mode to allow players to walk on lava and quicksand.",
     "Tip: Variants can be set to Random to pick a random variant each game!",
-    "Tip: Ceiling climbing is a lot faster than in vanilla.",
+    "Tip: Ceiling hanging is a lot faster than in vanilla.",
+    "Tip: In this mod, you can kick out of a Triple Jump.",
+    "Tip: If a room is constantly flooding, turn off the water. There may be a leak.",
 }
 local tip_game_mode = {
     { -- Shine Thief
@@ -66,15 +76,29 @@ local tip_game_mode = {
         "Tip: Elimination will turn you into a Bob-Omb. You can explode another player!",
         "Tip: You can steal a Balloon by slide-kicking into another player.",
         "Tip: You can have up to 5 balloons.",
-        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to give a balloon to a nearby teammate.",
-        "After GAME_TIME, everyone will be left with one balloon.",
+        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to share balloons with teammates.",
+        "Tip: In Team Mode, bomb players can be revived by sharing a balloon with them.",
+        "Tip: After GAME_TIME, the players or teams with the most balloons will enter Showtime.",
+        "Tip: You can move during the countdown on some stages.",
     },
     { -- Balloon Attack
-        "Tip: You'll lose half of your points if you lose all of your Balloons.",
+        "Tip: You'll lose a third of your points if you lose all of your Balloons.",
         "Tip: You'll get 3 points for sidelining a player.",
         "Tip: You can steal a Balloon by slide-kicking into another player.",
         "Tip: You can have up to 5 balloons.",
-        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to give a balloon to a nearby teammate.",
+        "Tip: In Team Mode, press ITEM_BUTTON while not holding an item to share balloons with teammates.",
+        "Tip: After GAME_TIME, the players or teams with the most points will enter Showtime.",
+        "Tip: You can move during the countdown on some stages.",
+    },
+    { -- Coin Rush
+        "Tip: Coins that fall off the map will respawn in a random location.",
+        "Tip: You'll drop a third of your coins when hit.",
+        "Tip: You can steal another player's coins with a Slide Kick.",
+        "Tip: Defeating enemies will also get you coins.",
+        "Tip: If there aren't many coins in a course, you'll start with some.",
+        "Tip: After GAME_TIME, the players or teams with the most coins will enter Showtime.",
+        "Tip: Players can drop both yellow and blue coins.",
+        "Tip: Blue coins are worth 5 coins. But you knew that, right?",
     },
 }
 local tip_variant = {
@@ -85,11 +109,14 @@ local tip_variant = {
     "Tip: Hold SPECIAL_BUTTON to boost!",
     "Tip: Press SPECIAL_BUTTON to throw bombs. Use the D-PAD to change the direction.",
     "Tip: Hold SPECIAL_BUTTON to boost! This can also be done while flying.",
+    "Tip: Press SPECIAL_BUTTON to shoot a fireball!",
+    "Tip: Press SPECIAL_BUTTON to perform a Feather Jump. This can be done in mid-air!",
 }
 local tip_variant_special = {
     "Tip: Two players must each hold a Shine to win.",
-    "Tip: Hold SPECIAL_BUTTON to blow up more balloons!",
-    "Tip: Hold SPECIAL_BUTTON to blow up more balloons!",
+    "Tip: Hold SPECIAL_BUTTON while standing still to blow up more balloons!",
+    "Tip: Hold SPECIAL_BUTTON while standing still to blow up more balloons!",
+    "Tip: Holding more coins will slow you down.",
 }
 local tip_item = {
     "Tip: Using a Mushroom lets you move faster AND steal SHINE_OR_BALLOON on any attack.",
@@ -116,7 +143,12 @@ local tip_item = {
     "Tip: The Banana can be thrown a far distance if you hold UP un the D-PAD.",
     "Tip: More powerful items will appear if Items are set to Frantic.",
     "Tip: Less powerful items will appear if Items are set to Skilled.",
-    "Tip: Shells will break when coming into contact with Bananas or other Shells (WIP)."
+    "Tip: Shells will break when coming into contact with Bananas or other Shells.",
+    "Tip: You can avoid oncoming Shells by leading them into a wall or item.",
+    "Tip: A sound effect will play when you're targetted by a Red or Blue Shell.",
+    "Tip: Fireballs and Boomerangs won't collide with other items.",
+    "Tip: The Blue Shell is an incredibly rare item that hurts whoever is winning!",
+    "Tip: It is possible to dodge a Blue Shell with a Mushroom and precise timing.",
 }
 
 local game_mode_list = {
@@ -124,11 +156,13 @@ local game_mode_list = {
     "\\#ffff40\\Shine Thief",
     "\\#ff5a5a\\Balloon Battle",
     "\\#ff5a5a\\Balloon Attack",
+    "\\#ffff40\\Coin Rush",
 }
 local game_mode_instruct = {
-    {"Get the \\#ffff40\\Shine\\#ffffff\\!", "%d seconds to win!"},
-    {"Keep your \\#ff5a5a\\Balloons\\#ffffff\\!", "Be the last one standing to win!"},
-    {"Pop \\#ff5a5a\\Balloons\\#ffffff\\!", "Get the most points in %d minutes!"},
+    { "Get the \\#ffff40\\Shine\\#ffffff\\!", "%d seconds to win!" },
+    { "\\#ff1e1e\\Eliminate\\#ffffff\\ all!", "If you lose all of your balloons, you're out!" },
+    { "Pop \\#ff5a5a\\Balloons\\#ffffff\\!",  "Get the most points in %d minute(s)!" },
+    { "Collect \\#ffff40\\coins\\#ffffff\\!", "Get the most coins in %d minute(s)" },
 }
 
 local SPECIAL_BUTTON_STRING = "Y"
@@ -137,7 +171,9 @@ if _G.OmmEnabled then
     tip_game_mode[1][3] = "Tip: A slide kick or Cappy attack will instantly steal the Shine."
     tip_game_mode[2][3] = "Tip: You can steal a Balloon with a slide kick or Cappy attack."
     tip_game_mode[3][3] = "Tip: You can steal a Balloon with a slide kick or Cappy attack."
+    tip_game_mode[4][3] = "Tip: You can steal another player's coins with a slide kick or Cappy attack."
     tip_general[1] = "Tip: After throwing Cappy, You can perform a homing attack by pressing the D-PAD."
+    tip_general[10] = "Tip: The item and variant buttons change when using OMM."
     SPECIAL_BUTTON_STRING = "L"
     ITEM_BUTTON_STRING = "the D-PAD while holding R"
 end
@@ -159,7 +195,10 @@ local DEFAULT_MAP_SIZE = 8192
 local menu_data = {
     [1] = {
         { "Continue", function() inMenu = false end },
-        { "Respawn", function() on_pause_exit(false) inMenu = false end },
+        { "Respawn", function()
+            on_pause_exit(false)
+            inMenu = false
+        end },
         { "Spectate", function() spectator_mode() end },
         { "Restart",  function() new_game() end,      true },
         { "New Game", function() enter_menu(3) end,   true },
@@ -301,6 +340,17 @@ local menu_data = {
             runOnChange = true
         },
         {
+            "Initial Balloons",
+            function(x)
+                gGlobalSyncTable.startBalloons = x
+                save_setting("initBalloons", x)
+            end,
+            currNum = 3,
+            minNum = 1,
+            maxNum = 5,
+            runOnChange = true
+        },
+        {
             "God Mode",
             function(x)
                 gGlobalSyncTable.godMode = (x == 1)
@@ -310,6 +360,18 @@ local menu_data = {
             minNum = 0,
             maxNum = 1,
             nameRef = { "Off", "On" },
+            runOnChange = true
+        },
+        {
+            "Bomb Players",
+            function(x)
+                gGlobalSyncTable.bombSetting = x
+                save_setting("bombSetting", x)
+            end,
+            currNum = 1,
+            minNum = 0,
+            maxNum = 2,
+            nameRef = { "Off", "One-Time", "Respawn" },
             runOnChange = true
         },
     },
@@ -340,6 +402,8 @@ function on_hud_render()
     end
 
     if DEBUG_INVIS then return end
+
+    local sMario0 = gPlayerSyncTable[0]
 
     -- render starting locations
     if DEBUG_MODE and thisLevel.startLocations then
@@ -372,7 +436,7 @@ function on_hud_render()
     end
 
     frameCounter = frameCounter + 1
-    if frameCounter > 60 then frameCounter = 0 end
+    if frameCounter >= 60 then frameCounter = 0 end
 
     -- menu render
     if inMenu then
@@ -381,7 +445,7 @@ function on_hud_render()
     end
 
     local shineIndexes = {}
-    if gGlobalSyncTable.gameState == 2 then
+    if gGlobalSyncTable.gameMode == 0 and gGlobalSyncTable.gameState == 2 then
         for i = 0, (MAX_PLAYERS - 1) do
             if get_player_owned_shine(i) ~= 0 then
                 table.insert(shineIndexes, i)
@@ -403,61 +467,177 @@ function on_hud_render()
     elseif showGameResults then
         djui_hud_set_font(FONT_NORMAL)
         local scale = 1
-        local x = screenWidth * 0.5 - 300 * scale
-        local y = 10
-        local playerScore = {}
-        for i = 0, (MAX_PLAYERS - 1) do
-            local np = gNetworkPlayers[i]
-            local sMario = gPlayerSyncTable[i]
-            if np.connected then
-                if gGlobalSyncTable.gameMode == 0 then
-                    if (not sMario.spectator) or get_player_owned_shine(i) ~= 0 then
-                        table.insert(playerScore, { i, sMario.points or 0 })
+        local leftEdge = screenWidth * 0.5 - 300 * scale
+        local topEdge = 10
+        local x = leftEdge
+        local y = topEdge
+
+        if gGlobalSyncTable.teamMode == 0 then
+            if #leadBoardData == 0 then
+                leadBoardData = {}
+                for i = 0, (MAX_PLAYERS - 1) do
+                    local np = gNetworkPlayers[i]
+                    local sMario = gPlayerSyncTable[i]
+                    if np.connected then
+                        local insert = sMario.points or 0
+                        if gGlobalSyncTable.gameMode == 1 then
+                            insert = sMario.eliminated or 1
+                            if insert == 0 then insert = MAX_PLAYERS + 1 end
+                        end
+                        table.insert(leadBoardData, { i, sMario.points or 0 })
                     end
-                elseif gGlobalSyncTable.gameMode == 1 then
-                    if sMario.eliminated == 0 then
-                        table.insert(playerScore, { i, 9999 })
-                    else
-                        table.insert(playerScore, { i, sMario.eliminated or 1 })
+                end
+                table.sort(leadBoardData, function(a, b)
+                    return a[2] > b[2]
+                end)
+            end
+
+            local printed = 0
+            local place = 1
+            local prevScore = 0
+            for i, score in ipairs(leadBoardData) do
+                if printed > 16 then break end
+
+                local index = score[1]
+                local sMario = gPlayerSyncTable[index]
+                local np = gNetworkPlayers[index]
+                if np.connected and ((not sMario.spectator) or get_player_owned_shine(index)) then
+                    printed = printed + 1
+                    djui_hud_set_color(0, 0, 0, 128);
+                    djui_hud_render_rect(x - 6, y - 3 * scale, 600 * scale + 6, 40 * scale);
+
+                    local playerColor = network_get_player_text_color_string(index)
+                    if score[2] ~= prevScore then
+                        place = printed
+                        prevScore = score[2]
                     end
-                elseif gGlobalSyncTable.gameMode == 2 then
-                    table.insert(playerScore, { i, sMario.points or 0 })
+                    local text = placeString(place)
+                    djui_hud_print_text_with_color(text, x, y, scale)
+                    x = x + 80 * scale
+                    render_player_head(index, x, y, scale * 2, scale * 2)
+                    x = x + 80 * scale
+                    text = playerColor .. np.name
+                    djui_hud_print_text_with_color(text, x, y, scale)
+                    text = tostring(sMario.points)
+                    local width = djui_hud_measure_text(text) * scale
+                    x = screenWidth * 0.5 + 300 * scale - width - 6
+                    djui_hud_set_color(255, 255, 64, 255)
+                    djui_hud_print_text(text, x, y, scale)
+
+                    y = y + 45 * scale
+                    x = leftEdge
                 end
             end
-        end
-        table.sort(playerScore, function(a, b)
-            return a[2] > b[2]
-        end)
+        else
+            if #teamLeadBoardData == 0 then
+                for i = 1, gGlobalSyncTable.teamMode do
+                    table.insert(teamLeadBoardData, { i, 0, {} })
+                end
 
-        local place = 1
-        local prevScore = 0
-        for i, score in ipairs(playerScore) do
-            djui_hud_set_color(0, 0, 0, 128);
-            djui_hud_render_rect(x - 6, y - 3 * scale, 600 * scale + 6, 40 * scale);
-
-            local index = score[1]
-            local sMario = gPlayerSyncTable[index]
-            local np = gNetworkPlayers[index]
-            local playerColor = network_get_player_text_color_string(index)
-            if score[2] ~= prevScore then
-                place = i
-                prevScore = score[2]
+                for i = 0, (MAX_PLAYERS - 1) do
+                    local np = gNetworkPlayers[i]
+                    local sMario = gPlayerSyncTable[i]
+                    if np.connected and sMario.team and sMario.team ~= 0 then
+                        if gGlobalSyncTable.gameMode == 0 then -- shine thief
+                            if (not sMario.spectator) or get_player_owned_shine(i) ~= 0 then
+                                table.insert(teamLeadBoardData[sMario.team][3], i)
+                                if sMario.points > teamLeadBoardData[sMario.team][2] then
+                                    teamLeadBoardData[sMario.team][2] = sMario.points
+                                end
+                            end
+                        elseif gGlobalSyncTable.gameMode == 1 then -- balloon battle
+                            if sMario.eliminated == 0 then
+                                table.insert(teamLeadBoardData[sMario.team][3], i)
+                                teamLeadBoardData[sMario.team][2] = 9999
+                            elseif sMario.eliminated ~= 1 then
+                                table.insert(teamLeadBoardData[sMario.team][3], i)
+                                if sMario.eliminated > teamLeadBoardData[sMario.team][2] then
+                                    teamLeadBoardData[sMario.team][2] = sMario.eliminated
+                                end
+                            end
+                        else -- balloon attack, coin rush
+                            if (not sMario.spectator) then
+                                table.insert(teamLeadBoardData[sMario.team][3], i)
+                                teamLeadBoardData[sMario.team][2] = teamLeadBoardData[sMario.team][2] + sMario.points
+                            end
+                        end
+                    end
+                end
+                table.sort(teamLeadBoardData, function(a, b)
+                    return a[2] > b[2]
+                end)
             end
-            local text = placeString(place)
-            djui_hud_print_text_with_color(text, x, y, scale)
-            x = x + 80 * scale
-            render_player_head(index, x, y, scale * 2, scale * 2)
-            x = x + 80 * scale
-            text = playerColor .. np.name
-            djui_hud_print_text_with_color(text, x, y, scale)
-            text = tostring(sMario.points)
-            local width = djui_hud_measure_text(text) * scale
-            x = screenWidth * 0.5 + 300 * scale - width - 6
-            djui_hud_set_color(255, 255, 64, 255)
-            djui_hud_print_text(text, x, y, scale)
 
-            y = y + 45 * scale
-            x = screenWidth * 0.5 - 300 * scale
+            local place = 1
+            local prevScore = 0
+            local maxLinesPerTeam = 15 // ((#teamLeadBoardData + 1) // 2)
+            topEdge = topEdge + 90 * scale -- down 2 lines
+            for i, data in ipairs(teamLeadBoardData) do
+                local team = data[1]
+                local score = data[2]
+                if score ~= prevScore then
+                    place = i
+                    prevScore = score
+                end
+
+                if i == 1 then
+                    leftEdge = 20
+                elseif i % 2 ~= 0 then
+                    leftEdge = 20
+                    topEdge = topEdge + maxLinesPerTeam * 45 * scale --
+                else
+                    leftEdge = screenWidth - 20 - 600 * scale
+                end
+                x = leftEdge
+                y = topEdge
+
+                local color = deep_copy(TEAM_PALETTE[team][2])
+                color.r = math.max(0, color.r - 50)
+                color.g = math.max(0, color.g - 50)
+                color.b = math.max(0, color.b - 50)
+
+                djui_hud_set_color(color.r, color.g, color.b, 128)
+                djui_hud_render_rect(x - 6, y - 3 * scale, 600 * scale + 6, 40 * scale)
+
+                local text = placeString(place)
+                djui_hud_print_text_with_color(text, x, y, scale)
+                x = x + 80 * scale
+                text = TEAM_NAMES[team]
+                djui_hud_print_text_with_color(text, x, y, scale)
+                if gGlobalSyncTable.gameMode ~= 1 and gGlobalSyncTable.gameMode < 4 then
+                    text = tostring(score)
+                    local width = djui_hud_measure_text(text) * scale
+                    x = leftEdge + 600 * scale - width - 6
+                    djui_hud_set_color(255, 255, 64, 255)
+                    djui_hud_print_text(text, x, y, scale)
+                end
+                y = y + 40 * scale
+
+                for a, index in ipairs(data[3]) do
+                    x = leftEdge
+                    if a > maxLinesPerTeam - 1 then break end
+                    djui_hud_set_color(color.r, color.g, color.b, 128)
+                    djui_hud_render_rect(x - 6, y - 3 * scale, 600 * scale + 6, 40 * scale);
+
+                    local sMario = gPlayerSyncTable[index]
+                    local np = gNetworkPlayers[index]
+                    local playerColor = network_get_player_text_color_string(index)
+
+                    render_player_head(index, x, y, scale * 2, scale * 2)
+                    x = x + 80 * scale
+                    text = playerColor .. np.name
+                    djui_hud_print_text_with_color(text, x, y, scale)
+                    if gGlobalSyncTable.gameMode ~= 0 then
+                        text = tostring(sMario.points)
+                        local width = djui_hud_measure_text(text) * scale
+                        x = leftEdge + 600 * scale - width - 6
+                        djui_hud_set_color(255, 255, 64, 255)
+                        djui_hud_print_text(text, x, y, scale)
+                    end
+
+                    y = y + 40 * scale
+                end
+            end
         end
 
         djui_hud_set_font(FONT_MENU)
@@ -475,6 +655,9 @@ function on_hud_render()
         return
     else
         currTip = nil
+        leadBoardData = {}
+        teamLeadBoardData = {}
+
         djui_hud_set_font(FONT_NORMAL)
         local np = {}
         np[1] = network_player_from_global_index(localWinner or 0)
@@ -560,16 +743,17 @@ function on_hud_render()
                 alpha = 8 * usingTimer
             end
 
-            text = game_mode_instruct[gGlobalSyncTable.gameMode+1][1]
+            text = game_mode_instruct[gGlobalSyncTable.gameMode + 1][1]
             if gGlobalSyncTable.gameMode ~= 0 then
-                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode+1][2], gGlobalSyncTable.maxGameTime)
+                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode + 1][2],
+                    gGlobalSyncTable.maxGameTime)
             else
-                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode+1][2], gGlobalSyncTable.winTime)
+                subText1 = string.format(game_mode_instruct[gGlobalSyncTable.gameMode + 1][2], gGlobalSyncTable.winTime)
             end
 
             if gGlobalSyncTable.variant ~= 0 then
                 subText2 = tostring(variant_list[gGlobalSyncTable.variant + 2])
-                if subText2 == "VARIANT_SPECIAL" then subText2 = variant_special_list[gGlobalSyncTable.gameMode+2] end
+                if subText2 == "VARIANT_SPECIAL" then subText2 = variant_special_list[gGlobalSyncTable.gameMode + 2] end
                 subText2 = "Variant: " .. subText2
             end
             localGameTimer = usingTimer
@@ -643,39 +827,76 @@ function on_hud_render()
     end
 
     -- boost variant
-    if (gGlobalSyncTable.variant == 5 or gGlobalSyncTable.variant == 7 or gPlayerSyncTable[0].spectator) and gGlobalSyncTable.gameState == 2 then
-        local amount = (120 - (gPlayerSyncTable[0].specialCooldown or 0)) / 120
-        local boosting = (gPlayerSyncTable[0].boostTime > 0)
-        local x = screenWidth * 0.4
-        local y = screenHeight - 40
+    if gGlobalSyncTable.gameState == 2 and tipDispTimer == 0 then
+        if (gGlobalSyncTable.variant == 5 or gGlobalSyncTable.variant == 7 or is_spectator(0)) then
+            local amount = (120 - (sMario0.specialCooldown or 0)) / 120
+            local boosting = (sMario0.boostTime ~= 0)
+            local x = screenWidth * 0.4
+            local y = screenHeight - 40
 
-        djui_hud_set_color(0, 0, 0, 128)
-        djui_hud_render_rect(x - 6, y - 2, screenWidth * 0.2 + 12, 34)
-        local text = "Ready"
-        if amount == 1 then
-            djui_hud_set_color(81, 0, 255, 200)
-        else
-            if boosting then
-                text = "Boosting"
-                djui_hud_set_color(200, 200, 81, 200)
+            djui_hud_set_color(0, 0, 0, 128)
+            djui_hud_render_rect(x - 6, y - 2, screenWidth * 0.2 + 12, 34)
+            local text = "Ready"
+            if amount == 1 then
+                djui_hud_set_color(81, 0, 255, 200)
             else
-                text = "Recharging"
+                if boosting then
+                    text = "Boosting"
+                    djui_hud_set_color(200, 200, 81, 200)
+                else
+                    text = "Recharging"
+                    djui_hud_set_color(255, 0, 81, 200)
+                end
+            end
+
+            djui_hud_render_rect(x, y, amount * screenWidth * 0.2, 30)
+
+            djui_hud_set_font(FONT_TINY)
+            local scale = 2
+            local width = djui_hud_measure_text(text) * scale
+            x = (screenWidth - width) * 0.5
+            y = y - 20 * scale
+            djui_hud_print_text(text, x, y, scale)
+        elseif gGlobalSyncTable.variant == 1 and sMario0.eliminated == 0 and gGlobalSyncTable.gameState == 2 and gGlobalSyncTable.gameMode > 0 and gGlobalSyncTable.gameMode < 3 then
+            local amount = refillBalloonTimer / 90
+            local x = 0
+            local y = screenHeight - 60
+            local scale = 3
+
+            if refillBalloons ~= 0 then
+                local playerColor = network_get_player_text_color_string(0)
+                local r, g, b = convert_color(playerColor)
+                local tex = TEX_BALLOON
+                x = (screenWidth - (((tex.width + 5) * refillBalloons - 5) * scale)) / 2
+                for i = 1, refillBalloons do
+                    djui_hud_set_color(r, g, b, 255)
+                    djui_hud_render_texture(tex, x, y, scale, scale)
+                    djui_hud_set_color(255, 255, 255, 255)
+                    djui_hud_render_texture(TEX_BALLOON_SHINE, x, y, scale, scale)
+                    x = x + (tex.width + 5) * scale
+                end
+            end
+            if amount ~= 0 then
+                x = screenWidth * 0.4
+                y = y - 40
+                djui_hud_set_color(0, 0, 0, 128)
+                djui_hud_render_rect(x - 6, y - 2, screenWidth * 0.2 + 12, 34)
+                local text = "Refilling"
                 djui_hud_set_color(255, 0, 81, 200)
+                djui_hud_render_rect(x, y, amount * screenWidth * 0.2, 30)
+
+                djui_hud_set_font(FONT_TINY)
+                scale = 2
+                local width = djui_hud_measure_text(text) * scale
+                x = (screenWidth - width) * 0.5
+                y = y - 20 * scale
+                djui_hud_print_text(text, x, y, scale)
             end
         end
-
-        djui_hud_render_rect(x, y, amount * screenWidth * 0.2, 30)
-
-        djui_hud_set_font(FONT_TINY)
-        local scale = 2
-        local width = djui_hud_measure_text(text) * scale
-        x = (screenWidth - width) * 0.5
-        y = y - 20 * scale
-        djui_hud_print_text(text, x, y, scale)
     end
 
     -- shine timer on top (also does sound)
-    if #shineIndexes > 0 then
+    if #shineIndexes ~= 0 then
         local headDistance = 20
         local scale = 3
         local width = 24 * scale
@@ -713,34 +934,149 @@ function on_hud_render()
             render_player_head(shineIndex, x + width + 6 * scale, y, scale, scale)
             x = x + scale * headDistance
         end
+    elseif gGlobalSyncTable.gameMode ~= 0 and gGlobalSyncTable.gameState == 2 then
+        djui_hud_set_font(FONT_HUD)
+        local scale = 3
+
+        local text2 = ""
+        local width2 = 0
+        if gGlobalSyncTable.gameMode ~= 1 then
+            if frameCounter % 2 == 0 then
+                if prevPointCount < gPlayerSyncTable[0].points then
+                    prevPointCount = prevPointCount + 1
+                    if gGlobalSyncTable.gameMode == 3 then
+                        play_sound(SOUND_GENERAL_COIN, gMarioStates[0].marioObj.header.gfx.cameraToObject)
+                    end
+                elseif prevPointCount > gPlayerSyncTable[0].points then
+                    prevPointCount = prevPointCount - 1
+                end
+            end
+            text2 = tostring(prevPointCount)
+            width2 = (djui_hud_measure_text(text2) + 22) * scale -- 20 of this is space for the balloon
+        end
+
+        local minutes = gGlobalSyncTable.gameTimer // 30 // 60
+        local seconds = gGlobalSyncTable.gameTimer // 30 % 60
+
+        -- sound
+        if prevTimerNum[0] ~= seconds and seconds < 10 and minutes == 0 then
+            play_sound(SOUND_GENERAL2_SWITCH_TICK_FAST, gMarioStates[0].marioObj.header.gfx.cameraToObject)
+            prevTimerNum[0] = seconds
+        end
+
+        local text = string.format("%d'%02d", minutes, seconds)
+        local width = (djui_hud_measure_text(text) + 2) * scale
+
+        local x = (screenWidth - width) * 0.5
+        local y = 4 * scale
+
+        if gGlobalSyncTable.gameState == 0 then
+            x = (screenWidth - width2) * 0.5
+        else
+            if width2 ~= 0 then
+                x = (screenWidth - width) * 0.5 - 100
+            end
+            djui_hud_set_color(0, 0, 0, 128);
+            djui_hud_render_rect(x - 12, 0, width + 24,
+                28 * scale);
+
+            djui_hud_set_color(255, 255, 255, 255);
+            djui_hud_print_text(text, x, y, scale)
+            if width2 ~= 0 then
+                x = (screenWidth - width2) * 0.5 + 100
+            end
+        end
+
+        if width2 ~= 0 then
+            djui_hud_set_color(0, 0, 0, 128);
+            djui_hud_render_rect(x - 12, 0, width2 + 24,
+                28 * scale);
+
+            local tex = gTextures.coin
+            if gGlobalSyncTable.gameMode == 2 then
+                tex = TEX_BALLOON
+                djui_hud_set_color(255, 0, 0, 255);
+                djui_hud_render_texture(tex, x, y, scale, scale)
+                djui_hud_set_color(255, 255, 255, 255);
+                djui_hud_render_texture(TEX_BALLOON_SHINE, x, y, scale, scale)
+            else
+                djui_hud_set_color(255, 255, 255, 255);
+                djui_hud_render_texture(tex, x, y, scale, scale)
+            end
+
+            x = x + 20 * scale
+            djui_hud_set_color(255, 255, 255, 255);
+            djui_hud_print_text(text2, x, y, scale)
+        end
     end
 
     -- item preview
-    local item = gPlayerSyncTable[0].item or 0
-    if gGlobalSyncTable.gameState == 2 and (gGlobalSyncTable.items ~= 0 or item ~= 0) then
+    local item = sMario0.item or 0
+    if ((gGlobalSyncTable.gameState == 2 and gGlobalSyncTable.items ~= 0) or item ~= 0 or shuffleItem ~= 0) and not is_dead(0) then
         local scale = 2
         local x = 10
-        local y = 10
+        local y = 50
         djui_hud_set_color(255, 255, 255, 255)
         djui_hud_set_font(FONT_HUD)
         djui_hud_render_texture(get_texture_info("item_bg"), x, y, scale, scale)
-        djui_hud_render_texture(get_texture_info(string.format("item_preview_%02d", item)), x, y, scale, scale)
-        
-        local data = item_data[item]
-        if data and data.maxUses then
-            local uses = data.maxUses - gPlayerSyncTable[0].itemUses
-            
-            djui_hud_print_text("@"..uses, x+34*scale, y+45*scale, scale)
+        if shuffleItem == 0 then
+            if rItem ~= 0 then
+                play_sound(SOUND_MENU_REVERSE_PAUSE + 61569, gMarioStates[0].marioObj.header.gfx.cameraToObject)
+                rItem = 0
+            end
+            local data = item_data[item]
+            local tex = (data and data.tex) or get_texture_info(string.format("item_preview_%02d", item))
+            djui_hud_render_texture(tex, x, y, scale, scale)
+        else
+            if rItem == 0 or shuffleTimer % 5 == 2 then
+                rItem = math.random(1, #item_data)
+                play_sound(SOUND_MENU_REVERSE_PAUSE, gMarioStates[0].marioObj.header.gfx.cameraToObject)
+            end
+            djui_hud_render_texture(get_texture_info(string.format("item_preview_%02d", rItem)), x, y, scale, scale)
         end
 
-        if item ~= 0 and (frameCounter % 30 <= 15) then
+        local data = item_data[item]
+        if shuffleItem == 0 and data and data.maxUses then
+            local uses = data.maxUses - sMario0.itemUses
+
+            djui_hud_print_text("@" .. uses, x + 34 * scale, y + 45 * scale, scale)
+        end
+
+        if shuffleItem == 0 and item ~= 0 and (frameCounter % 30 <= 15) then
             local text = "X"
             if altAbilityButtons then
                 text = "R+"
             end
             local width = djui_hud_measure_text(text) * scale + 10
-            djui_hud_print_text(text, x+64*scale-width, y+10, scale)
+            djui_hud_print_text(text, x + 64 * scale - width, y + 10, scale)
         end
+    end
+
+    -- pow block effect
+    if powBlockTimer ~= 0 then
+        local scaleY = 4
+        if powBlockTimer < 30 then
+            scaleY = 2
+        end
+        if powBlockTimer % 30 <= 5 then
+            scaleY = scaleY - 2 + (powBlockTimer % 30) / 2.5
+        end
+        local scaleX = 6 - scaleY / 2
+        local tex = get_texture_info("item_preview_12")
+        local x = (screenWidth - tex.width * scaleX) / 2
+        local y = (screenHeight * 0.4 - (tex.height * scaleY)) / 2
+        local index = network_local_index_from_global(powBlockOwner) or 0
+        local sMario = gPlayerSyncTable[index]
+        if sMario.team == nil or sMario.team == 0 then
+            djui_hud_set_color(155, 255, 255, 155)
+        else
+            local color = TEAM_PALETTE[sMario.team][2]
+            --color.r = math.max(0, color.r - 50)
+            --color.g = math.max(0, color.g - 50)
+            --color.b = math.max(0, color.b - 50)
+            djui_hud_set_color(color.r, color.g, color.b, 155)
+        end
+        djui_hud_render_texture(tex, x, y, scaleX, scaleY)
     end
 
     -- minimap
@@ -755,7 +1091,7 @@ function on_hud_render()
         -- first, determine the level size (expand if a player is beyond the bounds)
         for i = 0, MAX_PLAYERS - 1 do
             local m = gMarioStates[i]
-            if not (gPlayerSyncTable[i].spectator) and is_player_active(m) ~= 0 and math.abs(m.pos.x) > levelSize or math.abs(m.pos.z) > levelSize then
+            if (i == 0 or ((not is_dead(i)) and is_player_active(m) ~= 0)) and math.abs(m.pos.x) > levelSize or math.abs(m.pos.z) > levelSize then
                 levelSize = math.max(math.abs(m.pos.x), math.abs(m.pos.z))
             end
         end
@@ -772,7 +1108,7 @@ function on_hud_render()
         end
 
         djui_hud_set_color(255, 255, 255, 255)
-        for i,shine in ipairs(shineList) do
+        for i, shine in ipairs(shineList) do
             if get_shine_owner(shine.oBehParams) == -1 then
                 local renderX = clampf(shine.oPosX / (levelSize * 2) + 0.5, 0, 1) * mapWidth + x - 20
                 local renderY = clampf(shine.oPosZ / (levelSize * 2) + 0.5, 0, 1) * mapWidth + y - 20
@@ -782,17 +1118,19 @@ function on_hud_render()
 
         for i = MAX_PLAYERS - 1, 0, -1 do -- go backwards so that our own player renders on top
             local m = gMarioStates[i]
-            if i == 0 or (not (gPlayerSyncTable[i].spectator) and is_player_active(m) ~= 0) then
+            if i == 0 or ((not is_dead(i)) and is_player_active(m) ~= 0) then
                 local scale = (i == 0 and 2.5) or 2
                 local renderX = m.pos.x / (levelSize * 2) + 0.5
                 local renderY = m.pos.z / (levelSize * 2) + 0.5
                 renderX = clampf(renderX, 0, 1) * mapWidth + x - 8 * scale
                 renderY = clampf(renderY, 0, 1) * mapWidth + y - 8 * scale
 
-                render_player_head(i, math.floor(renderX), math.floor(renderY), scale, scale)
+                local alpha = 155
+                if i == 0 then alpha = 255 end
+                render_player_head(i, math.floor(renderX), math.floor(renderY), scale, scale, alpha)
                 local playercolor = network_get_player_text_color_string(i)
                 local r, g, b = convert_color(playercolor)
-                djui_hud_set_color(r, g, b, 155)
+                djui_hud_set_color(r, g, b, alpha - 100)
                 djui_hud_set_rotation(m.faceAngle.y, 0.5, 0.5)
                 djui_hud_render_texture(TEX_MAP_ARROW, renderX - 8 * scale, renderY - 8 * scale, scale, scale)
                 djui_hud_set_rotation(0, 0, 0)
@@ -861,9 +1199,9 @@ function render_menu()
 
     local scale = 2
     local x = 0
-    local y = (screenHeight * 0.5) - (20 * scale) - (#menu * 20 * scale)
+    local y = (screenHeight * 0.5) - (#menu * 20 * scale)
     if (#menu % 2 == 0) then
-        y = y + 20 * scale
+        y = y + 10 * scale
     end
 
     for i, button in ipairs(menu) do
@@ -1076,13 +1414,13 @@ function render_menu()
                 end
 
                 if (isRomHack and level_is_vanilla_level(level)) then
-                    text = "VANILLA COURSE"
+                    text = text .. " (ORG)"
                 end
             end
             if button.currNum then
                 if button.nameRef and button.nameRef[button.currNum - button.minNum + 1] then
                     local optionText = button.nameRef[button.currNum - button.minNum + 1]
-                    if optionText == "VARIANT_SPECIAL" then optionText = variant_special_list[menuGameMode+2] end
+                    if optionText == "VARIANT_SPECIAL" then optionText = variant_special_list[menuGameMode + 2] end
                     text = text .. "  < " .. remove_color(optionText) .. " >"
                 else
                     text = text .. "  < " .. button.currNum .. " >"
@@ -1214,7 +1552,7 @@ function menu_controls(m)
             button[2](button.currNum)
         end
     elseif (m.controller.buttonPressed & B_BUTTON) ~= 0 then
-        if #menu_history > 0 then
+        if #menu_history ~= 0 then
             play_sound(SOUND_MENU_CLICK_FILE_SELECT, m.marioObj.header.gfx.cameraToObject)
             enter_menu(menu_history[#menu_history][1], menu_history[#menu_history][2], true)
             table.remove(menu_history, #menu_history)
@@ -1329,6 +1667,8 @@ TEX_SHINE = get_texture_info("shine_hud")
 TEX_SHINE_SMALL = get_texture_info("shine_hud_small")
 TEX_SHINE_CIRCLE = get_texture_info("shine_hud_circle")
 TEX_MAP_ARROW = get_texture_info("map-arrow")
+TEX_BALLOON = get_texture_info("balloon")
+TEX_BALLOON_SHINE = get_texture_info("balloon_shine")
 shine_radar = {}
 shine_radar[1] = { prevX = 0, prevY = 0, prevScale = 0 }
 shine_radar[2] = { prevX = 0, prevY = 0, prevScale = 0 }
@@ -1499,13 +1839,13 @@ function new_tip(variant)
     if variant then
         local text = tip_variant[gGlobalSyncTable.variant]
         if text == "VARIANT_SPECIAL_TIP" then
-            text = tip_variant_special[gGlobalSyncTable.gameMode+1]
+            text = tip_variant_special[gGlobalSyncTable.gameMode + 1]
         end
         text = string.gsub(text, "SPECIAL_BUTTON", SPECIAL_BUTTON_STRING)
         return text
     end
 
-    local tip_curr_mode = tip_game_mode[gGlobalSyncTable.gameMode+1]
+    local tip_curr_mode = tip_game_mode[gGlobalSyncTable.gameMode + 1]
     local tipNum = 0
     if gNetworkPlayers[0].name == "Unreal" then
         return tip_general[4] -- always show credit tip
@@ -1514,7 +1854,7 @@ function new_tip(variant)
     else
         tipNum = math.random(1, #tip_general + #tip_curr_mode)
     end
-    
+
     local text = ""
     if tipNum > #tip_general + #tip_curr_mode then
         text = tip_item[tipNum - #tip_general - #tip_curr_mode]
@@ -1529,6 +1869,8 @@ function new_tip(variant)
 
     if gGlobalSyncTable.gameMode == 0 then
         text = string.gsub(text, "SHINE_OR_BALLOON", "the Shine")
+    elseif gGlobalSyncTable.gameMode == 3 then
+        text = string.gsub(text, "SHINE_OR_BALLOON", "10 coins")
     else
         text = string.gsub(text, "SHINE_OR_BALLOON", "a balloon")
     end
@@ -1576,29 +1918,36 @@ local defaultIcons = {
 --- @param y integer
 --- @param scaleX number
 --- @param scaleY number
-function render_player_head(index, x, y, scaleX, scaleY)
+function render_player_head(index, x, y, scaleX, scaleY, alpha_)
     local m = gMarioStates[index]
     local sMario = gPlayerSyncTable[index]
     local np = gNetworkPlayers[index]
 
+    local alpha = alpha_ or 255
+    if (m.marioBodyState.modelState & MODEL_STATE_NOISE_ALPHA) ~= 0 then
+        alpha = math.max(alpha - 155, 0) -- vanish effect
+    end
+
     if CS_ACTIVE then
-        djui_hud_set_color(255, 255, 255, 255)
+        djui_hud_set_color(255, 255, 255, alpha)
         local TEX_CS_ICON = _G.charSelect.character_get_life_icon(index)
         if TEX_CS_ICON and not defaultIcons[TEX_CS_ICON] then
             djui_hud_render_texture(TEX_CS_ICON, x, y, scaleX / (TEX_CS_ICON.width * 0.0625),
                 scaleY / (TEX_CS_ICON.width * 0.0625))
+            if m.marioBodyState.capState == MARIO_HAS_WING_CAP_ON then
+                djui_hud_render_texture(WING_HUD, x, y, scaleX, scaleY)                                              -- wing
+            end
             return
         elseif TEX_CS_ICON == nil then
             djui_hud_set_font(FONT_HUD)
             djui_hud_print_text("?", x, y, scaleX)
+            if m.marioBodyState.capState == MARIO_HAS_WING_CAP_ON then
+                djui_hud_render_texture(WING_HUD, x, y, scaleX, scaleY)                                              -- wing
+            end
             return
         end
     end
 
-    local alpha = 255
-    if (m.marioBodyState.modelState & MODEL_STATE_NOISE_ALPHA) ~= 0 then
-        alpha = 100 -- vanish effect
-    end
     local isMetal = false
 
     local tileY = m.character.type
@@ -1686,6 +2035,7 @@ function add_mcdonalds()
         course = 0,
         name = "McDonald's",
         area = 1,
+        act = 0,
         tex = "painting_md",
 
         startLocations = {
@@ -1693,11 +2043,35 @@ function add_mcdonalds()
         },
         shineStart = { 310, 985, 230 },
 
-        boxLocations = {
-            { -1114, 300, -1150, 0x4000, 16384 },
-            { -1114, 300, -445,  0x4000, 16384 },
-            { 627,   300, -445,  0x4000, 16384 },
-            { -276,  300, -1430, 0x4000, 0 },
+        objLocations = {
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -1114, 300, -1150, 0, 0, 0x4000, 16384 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -1114, 300, -445,  0, 0, 0x4000, 16384 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 627,   300, -445,  0, 0, 0x4000, 16384 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -276,  300, -1430, 0, 0, 0x4000, 0 },
+        },
+
+        itemBoxLocations = {
+            { -1045, 292, 966 },
+            { -2402, 292, -3160 },
+            { -2418, 343, -2434 },
+            { 3403,  292, 496 },
+            { 950,   292, 970 },
+            { 960,   292, -1360 },
+            { -900,  985, -1190 },
+            { 374,   985, -1190 },
+            { -1787, 270, -140 },
+            { -1475, 270, -140 },
+            { 189,   270, -3156 },
+            { 189,   270, -2428 },
+            { 189,   270, -1804 },
+            { 1060,  270, -452 },
+            { 1684,  270, -452 },
+            { 2330,  270, -452 },
+            { -3689, 292, 1730 },
+            { -3535, 292, -492 },
+            { -3317, 292, -2472 },
+            { -1722, 292, 3878 },
+            { 1683,  292, 3973 },
         },
     })
     menu_data[3][1].maxNum = #levelData -- make selectable
@@ -1713,6 +2087,7 @@ end
 -- set menu settings when starting a new game
 function menu_set_settings(load)
     doVoteCalc = true
+    currTip = nil
     if load then
         menuTeam = load_setting("teamMode") or 0
         menuVariant = load_setting("variant") or 0
@@ -1723,26 +2098,31 @@ function menu_set_settings(load)
         end
         gGlobalSyncTable.mapChoice = load_setting("mapChoice") or 0
         gGlobalSyncTable.items = load_setting("items") or 1
-        gGlobalSyncTable.maxGameTime = load_setting("maxGameTime") or 5
+        gGlobalSyncTable.maxGameTime = load_setting("maxGameTime") or 3
+        gGlobalSyncTable.startBalloons = load_setting("startBalloons") or 3
         gGlobalSyncTable.godMode = load_setting("godMode", true) or false
+        gGlobalSyncTable.bombSetting = load_setting("bombSetting") or 1
     else
         if menuTeam ~= -1 then
             menuTeam = gGlobalSyncTable.teamMode
         end
-        if menuVariant ~= -1 then
+        if menuVariant ~= -1 and (menuVariant ~= 1 or gGlobalSyncTable.variant ~= 0) then
             menuVariant = gGlobalSyncTable.variant
         end
         if menuGameMode ~= -1 then
             menuGameMode = gGlobalSyncTable.gameMode
         end
     end
+    prevPointCount = 0
     set_menu_option(5, 1, menuGameMode)
     set_menu_option(5, 2, gGlobalSyncTable.mapChoice)
     set_menu_option(5, 3, menuVariant)
     set_menu_option(5, 4, menuTeam)
     set_menu_option(5, 5, gGlobalSyncTable.items)
     set_menu_option(5, 6, gGlobalSyncTable.maxGameTime)
-    set_menu_option(5, 7, (gGlobalSyncTable.godMode and 1) or 0)
+    set_menu_option(5, 7, gGlobalSyncTable.startBalloons)
+    set_menu_option(5, 8, (gGlobalSyncTable.godMode and 1) or 0)
+    set_menu_option(5, 9, gGlobalSyncTable.bombSetting)
 end
 
 -- converts text to sm64 style abbreviation (ex: Bowser In The Sky becomes BitS)
@@ -1769,6 +2149,7 @@ function add_variant(name, tip_)
     menu_data[5][2].maxNum = (#variant_list - 2)
     return (#variant_list - 2)
 end
+
 function set_alt_ability_strings(set)
     if set then
         SPECIAL_BUTTON_STRING = "L"

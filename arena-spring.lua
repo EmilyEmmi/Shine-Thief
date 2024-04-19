@@ -1,4 +1,4 @@
--- shockingly, this is directly taken from arena
+-- shockingly, this is directly taken from arena (TODO: doesn't work for other people for some reason? could not recreate)
 
 E_MODEL_SPRING_TOP = smlua_model_util_get_id("spring_top_geo")
 E_MODEL_SPRING_BOTTOM = smlua_model_util_get_id("spring_bottom_geo")
