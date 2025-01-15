@@ -38,7 +38,7 @@ _G.ShineThief = {
     -- takes an action value and marks it as being able to steal the shine (must be an attacking action to work)
     add_steal_attack = add_steal_attack,
 
-    get_item = function(index) -- returns held item; see item.lua for the values (0 is neutral)
+    get_item = function(index) -- returns held item; see item.lua for the values (0 is no item)
         return gPlayerSyncTable[index].item or 0
     end,
 
@@ -62,6 +62,10 @@ _G.ShineThief = {
         return gPlayerSyncTable[index].boostTime or 0
     end,
 
+    is_small = function(index) -- if the player is small from a poison mushroom (non-zero if active)
+        return gPlayerSyncTable[index].smallTimer or 0
+    end,
+
     get_variant = function() -- see zz_hud.lua for values
         return gGlobalSyncTable.variant or 0
     end,
@@ -71,15 +75,29 @@ _G.ShineThief = {
     -- be sure to give the name a color string (like with \\#000000\\, for example)
     add_variant = add_variant,
 
+    -- adds an item, returning the created item's value (see item_data in item.lua)
+    -- IMPORTANT: add a field called "tex" set to the texture you want to appear in the item preview
+    add_item = add_item,
+
+    -- adds an object that is treated as an item (see item_id_list in item.lua)
+    add_item_object = add_item_object,
+
+    -- common item functions
+    do_item_collision = do_item_collision,
+    set_action_after_throw = set_action_after_throw,
+
     is_menu_open = function() -- self explanatory
         return inMenu or showGameResults
     end,
 
     set_alt_buttons = function(set) -- changes the buttons for abilities to what they are when OMM is enabled if SET is true
-        altAbilityButtons = set
-        SPECIAL_BUTTON = (altAbilityButtons and L_TRIG) or Y_BUTTON
-        ITEM_BUTTON = (altAbilityButtons and (U_JPAD | D_JPAD | L_JPAD | R_JPAD)) or X_BUTTON
-        set_alt_ability_strings(set)
+        if (specialBindSelection < 5) == set then
+            specialBindSelection = (set and 2) or 1
+        end
+        if (itemBindSelection < 5) == set then
+            itemBindSelection = (set and 8) or 0
+        end
+        setup_controls(true)
     end,
 
     get_gamemode = function() -- returns gamemode (list in zz_hud)
@@ -94,18 +112,17 @@ _G.ShineThief = {
         return gPlayerSyncTable[index].isBomb or false
     end,
 
-    -- adds a new item, see item.lua for information; returns item id
-    -- IMPORTANT: add a field called "tex" set to the texture you want to appear in the item preview
-    add_item = function(data)
-        table.insert(item_data, data)
-        return #item_data
-    end,
-
     -- returns if two players are on different teams (also true if either is neutral)
     on_different_teams = function(index, index2)
         local team = gPlayerSyncTable[index].team
         local team2 = gPlayerSyncTable[index2].team
         return team == 0 or team2 == 0 or team ~= team2
+    end,
+
+    -- adds support for a rom hack, check z_leveldata.lua for formatting
+    -- enable cheats to use debug mode for assistance in development
+    hack_support = function(data)
+        hackData["customHack"] = data
     end,
 
     -- actions
@@ -115,4 +132,7 @@ _G.ShineThief = {
     ACT_GAME_LOSE = ACT_GAME_LOSE,
     ACT_ITEM_THROW_GROUND = ACT_ITEM_THROW_GROUND,
     ACT_ITEM_THROW_AIR = ACT_ITEM_THROW_AIR,
+    ACT_SHOCKED_HURTABLE = ACT_SHOCKED_HURTABLE,
+    ACT_WATER_SHOCKED_HURTABLE = ACT_WATER_SHOCKED_HURTABLE,
+    ACT_HANGING_KICK = ACT_HANGING_KICK,
 }

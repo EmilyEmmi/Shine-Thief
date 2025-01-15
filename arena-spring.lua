@@ -1,4 +1,4 @@
--- shockingly, this is directly taken from arena (TODO: doesn't work for other people for some reason? could not recreate)
+-- shockingly, this is directly taken from arena
 
 E_MODEL_SPRING_TOP = smlua_model_util_get_id("spring_top_geo")
 E_MODEL_SPRING_BOTTOM = smlua_model_util_get_id("spring_bottom_geo")
@@ -104,7 +104,7 @@ function bhv_arena_spring_loop(obj)
     local m = nearest_mario_state_to_object(obj)
     local player = m.marioObj --gMarioStates[0].marioObj
     local dist = math.sqrt((obj.oPosX - player.oPosX) ^ 2 + (obj.oPosY - player.oPosY) ^ 2 + (obj.oPosZ - player.oPosZ) ^ 2)
-    if dist < 160 then
+    if dist < 160 and m.action ~= ACT_CAPTURED then
         bhv_arena_spring_launch(obj, m)
     end
     if obj.oArenaSpringSprung > 0 then

@@ -3,6 +3,7 @@ levelData = {
     {
         level = LEVEL_BOB,
         course = COURSE_BOB,
+        saveName = "bob",
         area = 1,
         tex = "painting_05",
 
@@ -55,6 +56,7 @@ levelData = {
     {
         level = LEVEL_WF,
         course = COURSE_WF,
+        saveName = "wf",
         area = 1,
         act = 1,
         tex = "painting_00",
@@ -110,9 +112,56 @@ levelData = {
     {
         level = LEVEL_JRB,
         course = COURSE_JRB,
+        saveName = "jrb",
+        area = 1,
+        noWater = true,
+        noSlide = true,
+        tex = "painting_15",
+
+        startLocations = {
+            [0] = {-6704, 2126, 1482},
+        },
+        shineStart = { 5000, -5061, 2500 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -5100, 1126,  -180, 0, 1, 0x0, -0x2000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 3530,  -5119, 2510, 1, 0, 0x0, 0x4000 },
+        },
+
+        itemBoxLocations = {
+            { 3642,  -4959, 3175 },
+            { 5394,  2215,  1300 },
+            { 4400,  2209,  1300 },
+            { 4900,  1825,  4700 },
+            { 2077,  1696,  7465 },
+            { 648,   -351,  4256 },
+            { -546,  672,   5930 },
+            { -1945, 1491,  6509 },
+            { -1845, -863,  3518 },
+            { -2450, -863,  4272 },
+            { -1207, -863,  4336 },
+            { -1816, -863,  4964 },
+            { 4882,  -4959, 3867 },
+            { 6046,  -4959, 2638 },
+            { 4992,  -4959, 1456 },
+            { 3756,  -2806, -6084 },
+            { 1235,  -2806, -4695 },
+            { 1080,  -2806, -5960 },
+            { 279,   -2806, -7340 },
+            { -470,  -2806, -4340 },
+            { -1800, -2652, -2100 },
+            { -1150, -2652, -1550 },
+            { -1700, -2652, -1150 },
+            { -2400, -2652, -1800 },
+        },
+    },
+    {
+        level = LEVEL_JRB,
+        course = COURSE_JRB,
+        saveName = "jrb2",
         area = 2,
         noWater = true,
-        tex = "painting_15",
+        tex = "painting_25",
         name = "Inside The Jolly Roger",
         levelSize = 3700,
 
@@ -134,6 +183,7 @@ levelData = {
     {
         level = LEVEL_CCM,
         course = COURSE_CCM,
+        saveName = "ccm",
         area = 1,
         tex = "painting_06",
         levelSize = 6400,
@@ -146,6 +196,8 @@ levelData = {
         objLocations = {
             { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -1861, 2826,  -389,  0, 1, 0,   -25100 },
             { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        3317,  -4694, -147,  1, 0, 0,   -3600 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -3618, -4607, 4788,  2, 3, 0,   -29558 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1092,  -4607, 5726,  3, 2, 0,   16384 },
             { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -50,   3096,  -1488, 0, 0, 0x0, 0x0 },
         },
 
@@ -189,6 +241,7 @@ levelData = {
     {
         level = LEVEL_CCM,
         course = COURSE_CCM,
+        saveName = "ccm2",
         area = 2,
         name = "Snow Slide",
         tex = "painting_22",
@@ -222,14 +275,92 @@ levelData = {
         },
     },
     {
+        level = LEVEL_BBH,
+        course = COURSE_BBH,
+        saveName = "bbh",
+        area = 1,
+        center = {666, 1400},
+        levelSize = 5400,
+        tex = "painting_28",
+
+        startLocations = {
+            [0] = { 666, 796, 5288 },
+        },
+        shineStart = { 666, 3027, 1160 },
+
+        objLocations = {
+            { id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM,  -1540, -204,  2916, 150, 0, 0x0, 0x0 },
+            { id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM,  2880,  -204,  2916, 150, 0, 0x0, 0x0 },
+            { id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM,  1728,  -204,  2347, 150, 0, 0x0, 0x0 },
+            { id_bhvArenaSpring, E_MODEL_SPRING_BOTTOM,  -396,  -204,  2347, 150, 0, 0x0, 0x0 },
+            { id_bhvSTPipe,      E_MODEL_BITS_WARP_PIPE, -2212, -204,  6173, 0,   1, 0x0, 0x6000 },
+            { id_bhvSTPipe,      E_MODEL_BITS_WARP_PIPE, -3333, -2457, 5042, 1,   0, 0x0, 0x4000 },
+        },
+
+        itemBoxLocations = {
+            { -1537, 2720,  1971 },
+            { 2831,  2720,  1971 },
+            { 666,   3437,  270 },
+            { -1540, 3437,  276 },
+            { 2932,  3437,  266 },
+            { 2856,  160,   2144 },
+            { 3138,  160,   373 },
+            { 1673,  160,   -839 },
+            { 50,    979,   -1400 },
+            { 259,   979,   -513 },
+            { 94,    160,   -814 },
+            { -887,  160,   1664 },
+            { -1960, 160,   -120 },
+            { -1500, 672,   924 },
+            { -420,  672,   100 },
+            { -1515, 160,   -960 },
+            { 2958,  979,   -809 },
+            { -3040, 1286,  5460 },
+            { 661,   -44,   3069 },
+            { 4648,  -44,   1335 },
+            { 4607,  -44,   -432 },
+            { 2882,  -44,   -2794 },
+            { 700,   -44,   -2800 },
+            { -1791, -44,   -2764 },
+            { -3240, -44,   -264 },
+            { -3197, -44,   1901 },
+            { -844,  -44,   2923 },
+            { 2321,  -44,   2876 },
+            { 648,   2082,  2394 },
+            { 746,   1901,  648 },
+            { 2891,  979,   666 },
+            { 2491,  979,   2225 },
+            { 1268,  979,   1860 },
+            { -184,  979,   1532 },
+            { -918,  1491,  -1435 },
+            { -2043, 1184,  1934 },
+            { -1056, 979,   -287 },
+            { -1978, 979,   -317 },
+            { -2617, -2297, 4723 },
+            { 16,    -2297, 3471 },
+            { -2165, -2297, 2089 },
+            { -2381, -2297, -1093 },
+            { 3213,  -2501, -1158 },
+            { 2769,  -2809, 2133 },
+            { 960,   -2297, 1784 },
+            { 507,   -2400, 266 },
+            { -374,  -2400, -576 },
+            { -1112, -2400, 231 },
+            { -174,  -2400, 1075 },
+        },
+    },
+    {
         level = LEVEL_HMC,
         course = COURSE_HMC,
+        saveName = "hmc",
         area = 1,
         tex = "painting_11",
         noWater = true,
-        name = "Deep Cave",
-        room = 6,
+        name = "Dorrie's Domain",
+        room = { [6] = 1, [16] = 1 },
         maxHeight = -2000,
+        levelSize = 4500,
+        center = { -3540, 3540 },
 
         startLocations = {
             [0] = { -790, -3279, 6290 },
@@ -254,11 +385,20 @@ levelData = {
             { -1680, -6167, 3540 },
             { -3540, -6167, 1680 },
             { -5400, -6167, 3540 },
+            { -1822, -6167, 4252 },
+            { -2828, -6167, 5258 },
+            { -4252, -6167, 5258 },
+            { -5258, -6167, 4252 },
+            { -5258, -6167, 2828 },
+            { -4252, -6167, 1822 },
+            { -2828, -6167, 1822 },
+            { -1822, -6167, 2828 },
         },
     },
     {
         level = LEVEL_LLL,
         course = COURSE_LLL,
+        saveName = "lll",
         area = 1,
         tex = "painting_02",
 
@@ -304,17 +444,19 @@ levelData = {
     {
         level = LEVEL_LLL,
         course = COURSE_LLL,
+        saveName = "lll2",
         area = 2,
         tex = "painting_23",
         name = "Inside Of The Volcano",
+        levelSize = 3000,
 
         startLocations = {
             [0] = { -955, 1102, -1029 },
         },
-        shineStart = { 2523, 3751, -901 },
+        shineStart = { -2355, 2428, -1200 },
 
         itemBoxLocations = {
-            { -1626, 258,  629 },
+            { -1675, 194,  -471 },
             { 831,   242,  -1538 },
             { 2112,  332,  -1719 },
             { 345,   1363, 2765 },
@@ -327,10 +469,16 @@ levelData = {
             { 1800,  3392, 1450 },
             { 625,   2310, 312 },
         },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 2523,  3591, -901, 1, 0, 0x0, -0x6000 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1511, 95,   557,  0, 1, 0,   0x6000 },
+        },
     },
     {
         level = LEVEL_SSL,
         course = COURSE_SSL,
+        saveName = "ssl",
         area = 1,
         tex = "painting_03",
         noWater = true,
@@ -375,6 +523,7 @@ levelData = {
         area = 2,
         tex = "painting_04",
         name = "The Ancient Pyramid",
+        saveName = "ssl2",
         levelSize = 6708,
         romhack_cam = true,
 
@@ -416,8 +565,75 @@ levelData = {
         },
     },
     {
+        level = LEVEL_DDD,
+        course = COURSE_DDD,
+        saveName = "ddd",
+        area = 2,
+        name = "Bowser's Sub",
+        tex = "painting_27",
+        noWater = true,
+        center = { 3930, 900 },
+        levelSize = 5200,
+
+        startLocations = {
+            [0] = { -300, -1924, 0 },
+        },
+        shineStart = { 3400, -3159, -500 },
+
+        objLocations = {
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        1630,  110,   4260, 0, 1, 0x0,    0x2000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        6627,  -4087, 2927, 1, 0, 0x0,    -0x5102 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 5510,  864,   2410, 0, 0, 0x0,    -0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 4160,  854,   3590, 0, 0, 0x0,    0x0 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 2610,  694,   950,  0, 0, 0x0,    -0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 2004,  874,   -448, 0, 0, 0x0,    -0x8000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2612, 485,  0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2612, 0,    0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2612, -485, 0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2312, 485,  0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2312, 0,    0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2312, -485, 0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2012, 485,  0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2012, 0,    0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -2012, -485, 0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -1712, 485,  0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -1712, 0,    0, 0, 0x4000, 0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, -2000, -1712, -485, 0, 0, 0x4000, 0x4000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -2299, -2756, 5,    2, 0, 0x0,    0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 945,   -3618, 290,  0, 0, 0x0,    -0x4000 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 945,   -3122, -298, 0, 0, 0x0,    -0x4000 }
+        },
+
+        itemBoxLocations = {
+            { 4889, -3927, 4433 },
+            { 3274, -3927, 4612 },
+            { 2709, -3927, 4001 },
+            { 1606, -3927, 2751 },
+            { 4307, -3625, -2184 },
+            { 5856, -3792, -832 },
+            { 4884, -3688, 1833 },
+            { 3046, -3648, 2011 },
+            { 2022, -3726, 540 },
+            { 1833, -3923, -1461 },
+            { 3900, 731,   -600 },
+            { 3900, 731,   518 },
+            { 3900, 731,   1896 },
+            { 6800, 270,   -150 },
+            { 6800, 270,   -850 },
+            { 5550, 1038,  3575 },
+            { 2974, 1038,  3584 },
+            { 5635, 1089,  1139 },
+            { 1627, 1089,  1239 },
+            { 2100, 1089,  -1600 },
+            { 6260, 270,   4356 },
+            { 5475, 270,   5086 },
+            { 2686, 270,   5303 },
+        },
+    },
+    {
         level = LEVEL_SL,
         course = COURSE_SL,
+        saveName = "sl",
         area = 1,
         tex = "painting_13",
         noWater = true,
@@ -463,9 +679,11 @@ levelData = {
     {
         level = LEVEL_WDW,
         course = COURSE_WDW,
+        saveName = "wdw",
         area = 1,
         noWater = true,
         tex = "painting_07",
+        levelSize = 4600,
 
         startLocations = {
             [0] = { 3387, 1128, 390 },
@@ -519,17 +737,22 @@ levelData = {
             { -2034, 1312, 938 },
             { 527,   544,  -120 },
             { 529,   544,  816 },
+            { 3330,  314,  2910 },
+            { 610,   160,  4240 },
+            { 610,   160,  2910 },
         },
     },
     {
         level = LEVEL_WDW,
         course = COURSE_WDW,
+        saveName = "wdw2",
         area = 2,
         noWater = true,
         tex = "painting_09",
         name = "Wet-Dry Town",
         romhack_cam = true,
         levelSize = 3800,
+        center = { -760, 760 },
 
         startLocations = {
             [0] = { -2385, -1559, 2466 },
@@ -575,8 +798,10 @@ levelData = {
     {
         level = LEVEL_TTM,
         course = COURSE_TTM,
+        saveName = "ttm",
         area = 1,
         tex = "painting_08",
+        levelSize = 6700,
 
         startLocations = {
             [0] = { 95, -3332, 5693 },
@@ -628,10 +853,12 @@ levelData = {
     {
         level = LEVEL_THI,
         course = COURSE_THI,
+        saveName = "thi",
         area = 2,
         tex = "painting_10",
         noWater = true,
         name = "Tiny Island",
+        borderSize = 42,
         levelSize = 5000,
 
         startLocations = {
@@ -656,6 +883,7 @@ levelData = {
     {
         level = LEVEL_THI,
         course = COURSE_THI,
+        saveName = "thi2",
         area = 1,
         tex = "painting_21",
         noWater = true,
@@ -709,11 +937,11 @@ levelData = {
     {
         level = LEVEL_THI,
         course = COURSE_THI,
+        saveName = "thi3",
         area = 3,
         tex = "painting_20",
         name = "Wiggler's Cave",
         levelSize = 2000,
-        maxHeight = 1950,
 
         startLocations = {
             [0] = { 727, 1024, 1230 },
@@ -726,7 +954,7 @@ levelData = {
             [7] = { -516, 768, -427 },
             [8] = { -1567, 512, -1829 },
             [9] = { -1412, 512, -1120 },
-            [10] = { -1861, 512, -1501 },
+            [10] = { -1498, 512, -1501 },
             [11] = { -1304, 1024, 276 },
             [12] = { -1824, 1024, 286 },
             [13] = { -1695, 1434, 1527 },
@@ -736,7 +964,9 @@ levelData = {
         shineStart = { 240, 1118, 189 },
 
         objLocations = {
-            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 240, 932, 189, 0, 0, 0x0, 0x0 },
+            { id_bhvStaticCheckeredPlatform, E_MODEL_CHECKERBOARD_PLATFORM, 240,   932,  189,   0, 0, 0x0, 0x0 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -1861, 512,  -1501, 0, 1, 0x0, 0x4000 },
+            { id_bhvSTPipe,                  E_MODEL_BITS_WARP_PIPE,        -500,  1843, 0,     1, 0, 0x0, 0xC000 },
         },
 
         itemBoxLocations = {
@@ -751,13 +981,75 @@ levelData = {
             { 1038,  1826, 998 },
             { -523,  1704, -500 },
             { -1838, 1932, 338 },
+            { 0,     2003, 0 },
+            { 0,     2250, 1780 },
+            { 0,     2250, -1780 },
+            { 1780,  2250, 0 },
+            { -1780, 2250, 0 },
+        },
+    },
+    {
+        level = LEVEL_TTC,
+        course = COURSE_TTC,
+        saveName = "ttc",
+        area = 1,
+        levelSize = 2000,
+        tex = "painting_26",
+
+        startLocations = {
+            [0] = {1384, -3822, -515},
+        },
+        shineStart = { 0, 4635, 0 },
+
+        objLocations = {
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, -1047, 6011,  -741, 1, 0, 0x0, 0x6022 },
+            { id_bhvSTPipe, E_MODEL_BITS_WARP_PIPE, 176,   -5211, 1660, 0, 1, 0x0, 0x4000 },
+        },
+
+        itemBoxLocations = {
+            { -1140, -3843, -1620 },
+            { -130,  -4248, -1050 },
+            { -1730, -3331, 980 },
+            { 620,   -5051, 1540 },
+            { 840,   -2327, 860 },
+            { 380,   -2327, 1319 },
+            { -1470, -1293, -1040 },
+            { -1144, -832,  -731 },
+            { -1511, -832,  -1099 },
+            { 520,   141,   1500 },
+            { 1240,  141,   840 },
+            { -1850, 141,   -950 },
+            { -1333, 447,   1116 },
+            { -1011, 1389,  532 },
+            { 660,   1511,  1880 },
+            { -1475, 1225,  -1175 },
+            { -1181, 1225,  -881 },
+            { -887,  1225,  -587 },
+            { -1050, 2274,  -790 },
+            { -1247, 2786,  -966 },
+            { -400,  3478,  1880 },
+            { -40,   4020,  -1280 },
+            { 1883,  4020,  550 },
+            { -1260, 4179,  16 },
+            { 48,    6171,  -1279 },
+            { 2200,  7211,  2210 },
+            { 1680,  5444,  1680 },
+            { 2169,  5444,  2169 },
+            { 1653,  5444,  2191 },
+            { 2149,  5444,  1684 },
+            { -22,   141,   -1662 },
+            { -1272, -2286, -1282 },
+            { 1057,  -1774, -775 },
         },
     },
     {
         level = LEVEL_RR,
         course = COURSE_RR,
+        saveName = "rr",
         area = 1,
         tex = "painting_18",
+        noFlySpawn = true,
+        noSlide = true,
 
         startLocations = {
             [0] = { 1822, -116, -50 },
@@ -821,8 +1113,10 @@ levelData = {
     {
         level = LEVEL_CASTLE_GROUNDS,
         course = 0,
+        saveName = "cg",
         area = 1,
         tex = "painting_14",
+        music = SEQ_LEVEL_INSIDE_CASTLE,
         noWater = true,
 
         startLocations = {
@@ -866,10 +1160,13 @@ levelData = {
     {
         level = LEVEL_CASTLE_COURTYARD,
         course = 0,
+        saveName = "cc",
         area = 1,
         tex = "painting_12",
+        music = SEQ_LEVEL_INSIDE_CASTLE,
         noWater = true,
         levelSize = 3800,
+        center = { 0, -1720 },
 
         startLocations = {
             [0] = { 0, 1000, 250 },
@@ -903,6 +1200,7 @@ levelData = {
     {
         level = LEVEL_PSS,
         course = COURSE_PSS,
+        saveName = "pss",
         area = 1,
         tex = "painting_19",
 
@@ -934,9 +1232,10 @@ levelData = {
     {
         level = LEVEL_SA,
         course = COURSE_SA,
+        saveName = "sa",
         area = 1,
         tex = "painting_24",
-        levelSize = 3021,
+        levelSize = 3100,
         maxHeight = 10000, -- just for coin rush
         romhack_cam = true,
         noWater = true,
@@ -965,6 +1264,10 @@ levelData = {
             { -2500, -4447, 2500 },
             { 2500,  -4447, -2500 },
             { -2500, -4447, -2500 },
+            { 0,     -4447, 1250 },
+            { -1250, -4447, 0 },
+            { 0,     -4447, -1250 },
+            { 1250,  -4447, 0 },
         },
 
         shineStart = { 0, -4242, 0 },
@@ -972,6 +1275,7 @@ levelData = {
     {
         level = LEVEL_BOWSER_1,
         course = COURSE_BITDW,
+        saveName = "b1",
         area = 1,
         tex = "painting_01",
         name = "Bowser's Dark Domain",
@@ -999,9 +1303,13 @@ levelData = {
 
         itemBoxLocations = {
             { 0,     467, 1000 },
+            { 707,   467, 707 },
             { 1000,  467, 0 },
+            { 707,   467, -707 },
             { 0,     467, -1000 },
+            { -707,  467, -707 },
             { -1000, 467, 0 },
+            { -707,  467, 707 },
         },
 
         shineStart = { 0, 467, 0 },
@@ -1009,6 +1317,7 @@ levelData = {
     {
         level = LEVEL_BOWSER_2,
         course = COURSE_BITFS,
+        saveName = "b2",
         area = 1,
         tex = "painting_16",
         badLava = true,
@@ -1038,9 +1347,13 @@ levelData = {
 
         itemBoxLocations = {
             { 0,     1389, 1000 },
+            { 707,   1389, 707 },
             { 1000,  1389, 0 },
+            { 707,   1389, -707 },
             { 0,     1389, -1000 },
+            { -707,  1389, -707 },
             { -1000, 1389, 0 },
+            { -707,  1389, 707 },
         },
 
         shineStart = { 0, 1389, 0 },
@@ -1048,6 +1361,7 @@ levelData = {
     {
         level = LEVEL_BOWSER_3,
         course = COURSE_BITS,
+        saveName = "b3",
         area = 1,
         tex = "painting_17",
         name = "Bowser's Sky Domain",
@@ -1075,13 +1389,44 @@ levelData = {
 
         itemBoxLocations = {
             { 0,     467, 1000 },
+            { 707,   467, 707 },
             { 1000,  467, 0 },
+            { 707,   467, -707 },
             { 0,     467, -1000 },
+            { -707,  467, -707 },
             { -1000, 467, 0 },
+            { -707,  467, 707 },
         },
 
         shineStart = { 0, 467, 0 },
     },
+}
+
+-- rom hacks
+hackData = {
+    --[[
+    ["green_screen_level"] = { -- example
+        {
+            name = "Green Screen",
+            level = LEVEL_CASTLE_COURTYARD,
+            course = 0,
+            area = 1,
+            tex = get_texture_info("painting_default"), -- for outside APIs, use a texture (strings only work for textures in the folder for THIS mod)
+            noWater = true,
+            lobby = true, -- set this for the level loaded when loading the mod
+
+            startLocations = {
+                [0] = { -3000, 1120, 0 },
+            },
+            shineStart = { 0, 260, 0 },
+
+            itemBoxLocations = {
+                { 0, 220, -1000 },
+                { 0, 220, 1000 },
+            },
+        },
+    }
+    ]]
 }
 
 thisLevel = levelData[1]
@@ -1101,6 +1446,7 @@ function setup_level_data(level)
         thisLevel.area = tonumber(args[2]) or 1
 
         thisLevel.noWater = (tonumber(args[3]) == 1)
+        thisLevel.noSlide = true
     end
     if arenaSpawnLocations[0] then
         thisLevel.startLocations = arenaSpawnLocations
@@ -1116,14 +1462,14 @@ function setup_level_data(level)
     end
 end
 
--- TODO: Fix weird desync with referring only using spot 0?
 function go_to_mario_start(localIndex, globalIndex, spawning)
     local m = gMarioStates[localIndex]
+    if m.action == ACT_CAPTURED then return end
     m.invincTimer = 90 -- 3 seconds
     local pos = {}
     if thisLevel.startLocations and thisLevel.startLocations[1] then
         local location = thisLevel.startLocations
-        [(globalIndex + gGlobalSyncTable.spawnOffset) % (#thisLevel.startLocations + 1)]
+            [(globalIndex + gGlobalSyncTable.spawnOffset) % (#thisLevel.startLocations + 1)]
         if location == nil then location = thisLevel.startLocations[1] end
         pos = { location[1], location[2], location[3] }
     else
@@ -1138,11 +1484,13 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
         if not DEBUG_MODE then
             pos[1] = pos[1] + ((globalIndex) % 4) * 100 - 150
             pos[3] = pos[3] + ((globalIndex) // 4) * 100 - 150
-            if (not spawning) and gGlobalSyncTable.gameMode > 0 and gGlobalSyncTable.gameMode < 3 then return end
         end
+        if (not spawning) and gGlobalSyncTable.gameMode > 0 and gGlobalSyncTable.gameMode < 3 then return end
     end
+    if (not spawning) and gGlobalSyncTable.gameMode == 4 and gPlayerSyncTable[localIndex].team ~= 2 then return end
 
     m.pos.x = pos[1]
+    m.pos.z = pos[3]
     if spawning then
         m.pos.y = pos[2]
         m.vel.y = 0
@@ -1156,15 +1504,27 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             obj_mark_for_deletion(m.riddenObj)
             m.riddenObj = nil
         end
-        m.faceAngle.y = obj_angle_to_point(m.marioObj, 0, 0)
+        local centerX, centerZ = 0, 0
+        if thisLevel.center then
+            centerX, centerZ = thisLevel.center[1], thisLevel.center[2]
+        end
+        m.faceAngle.y = obj_angle_to_point(m.marioObj, centerX, centerZ)
         set_mario_action(m, ACT_SPAWN_SPIN_AIRBORNE, 0)
         if localIndex == 0 then
             showGameResults = false
             if thisLevel.romhack_cam then
                 m.area.camera.defMode = CAMERA_MODE_ROM_HACK
             end
+            m.floor = collision_find_floor(m.pos.x, m.pos.y, m.pos.z)
             set_camera_mode(m.area.camera, m.area.camera.defMode, 0)
-            soft_reset_camera(m.area.camera)
+            m.marioObj.oPosX, m.marioObj.oPosY, m.marioObj.oPosZ = m.pos.x, m.pos.y, m.pos.z
+            soft_reset_camera_fix_bug(m.area.camera)
+            warp_camera(m.pos.x - gLakituState.curPos.x, m.pos.y - gLakituState.curPos.y, m.pos.z - gLakituState.curPos
+            .z)
+            skip_camera_interpolation()
+            m.statusForCamera.pos.y = m.pos.y
+            m.statusForCamera.faceAngle.y = m.faceAngle.y
+            m.area.camera.yaw = m.faceAngle.y
 
             set_ttc_speed_setting(1)
             gMarioStates[0].numStars = 0
@@ -1172,15 +1532,16 @@ function go_to_mario_start(localIndex, globalIndex, spawning)
             save_file_set_flags(SAVE_FLAG_MOAT_DRAINED)
             save_file_clear_flags(SAVE_FLAG_HAVE_KEY_2)
             save_file_clear_flags(SAVE_FLAG_UNLOCKED_UPSTAIRS_DOOR)
-            
+
             gPlayerSyncTable[0].bulletTimer = 0
+            gPlayerSyncTable[0].smallTimer = 0
             gPlayerSyncTable[0].star = false
             gPlayerSyncTable[0].mushroomTime = 0
+            gMarioStates[0].flags = gMarioStates[0].flags & ~(MARIO_WING_CAP | MARIO_VANISH_CAP)
             gMarioStates[0].capTimer = 0
             stop_cap_music()
         end
     end
-    m.pos.z = pos[3]
 end
 
 -- gets a random positon in the level
@@ -1190,18 +1551,22 @@ function random_valid_pos(y_, o)
     local max = (thisLevel and thisLevel.levelSize) or 8972
     y = (thisLevel and thisLevel.maxHeight) or y
     y = y - 300
-    local x = math.random(-max, max)
-    local z = math.random(-max, max)
+    local centerX, centerY = 0, 0
+    if thisLevel.center then
+        centerX, centerY = thisLevel.center[1], thisLevel.center[2]
+    end
+    local x = math.random(-max, max) + centerX
+    local z = math.random(-max, max) + centerY
     if o then
         o.oPosX, o.oPosY, o.oPosZ = x, y, z
-        cur_obj_update_floor()
-        local LIMIT = 50
-        while is_hazard_floor(o.oFloorType) and LIMIT > 0 do
+        o.oFloor = collision_find_floor(x, y, z)
+        local LIMIT = 100
+        while (o.oFloor == nil or is_hazard_floor(o.oFloorType) or o.oFloor.normal.y < 0.9) and LIMIT > 0 do
             LIMIT = LIMIT - 1
-            x = math.random(-max, max)
-            z = math.random(-max, max)
+            x = math.random(-max, max) + centerX
+            z = math.random(-max, max) + centerY
             o.oPosX, o.oPosY, o.oPosZ = x, y, z
-            cur_obj_update_floor()
+            o.oFloor = collision_find_floor(x, y, z)
         end
         y = o.oFloorHeight + 120
     end

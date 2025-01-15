@@ -3,9 +3,12 @@
 define_custom_obj_fields({
     oObjectOwner = "s32",       -- The global index of the player who owns this item. This used to be used for the shine too
     oShineDistFromHome = "f32", -- oStarSpawnDisFromHome screws up for some reason
-    oBalloonNumber = "f32",
-    oBalloonNextExists = "f32",
-    oBalloonAppearance = "f32", -- would just use globalPlayerIndex but it acts funky
+    oBalloonNumber = "s32",
+    oBalloonNextExists = "s32",
+    oBalloonAppearance = "s32", -- would just use globalPlayerIndex but it acts funky
+    oLastSafePosX = "s32", -- \
+    oLastSafePosY = "s32", -- | for shines and moons
+    oLastSafePosZ = "s32", -- /
 })
 
 local already_spawn_pointer = {} -- keep track of already used objects (for arena)
@@ -22,11 +25,11 @@ function bhv_shine_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oGravity = 2
     o.oBounciness = -0.2
-    o.oBuoyancy = 1
+    o.oBuoyancy = -1
     o.oFriction = 0.8
     o.oFaceAnglePitch = 0
     o.oFaceAngleRoll = 0
-    o.oAnimState = -1
+    o.oAnimState = 0
     o.oInteractStatus = 0
 
     -- By sending packets manually, we can only send packets when necessary
@@ -41,15 +44,20 @@ function bhv_shine_init(o)
         'oAction',
         'oHomeX',
         'oHomeY',
-        'oHomeZ'
+        'oHomeZ',
+        'activeFlags',
+        'oObjectOwner',
+        'oVelY',
+        'oLastSafePosX',
+        'oLastSafePosY',
+        'oLastSafePosZ',
     })
 end
 
 --- @param o Object
 function bhv_shine_loop(o)
-    prevent_obj_dupe(o)
     local send = false
-    local m = nearest_mario_state_to_object(o)
+    local m = nearest_living_mario_state_to_object(o)
 
     o.oFaceAngleYaw = o.oFaceAngleYaw + 0x800 -- spin
     local shineOwner = get_shine_owner(o.oBehParams)
@@ -64,6 +72,12 @@ function bhv_shine_loop(o)
             o.oPosY = ownerM.pos.y + 250
             o.oPosZ = ownerM.pos.z
             if network_is_server() then
+                -- update safe pos
+                if m.pos.y == m.floorHeight and not (is_hazard_floor(m.floor.type) or mario_floor_is_slippery(m) ~= 0) then
+                    o.oLastSafePosX = m.pos.x
+                    o.oLastSafePosY = m.floorHeight + 160
+                    o.oLastSafePosZ = m.pos.z
+                end
                 send = true
             end
         elseif network_is_server() then
@@ -76,9 +90,8 @@ function bhv_shine_loop(o)
         end
     elseif m and get_player_owned_shine(m.playerIndex) == 0
         and network_is_server() and gGlobalSyncTable.gameState ~= 1
-        and not is_dead(m.playerIndex)
-        and dist_between_objects(o, m.marioObj) <= 275
-        and (o.oAction == 0 or o.oTimer > 30) then -- interaction (only if shine has not been dropped recently) handled by the server
+        and (o.oAction == 0 or o.oTimer > 30)
+        and dist_between_objects(o, m.marioObj) <= 275 then -- interaction (only if shine has not been dropped recently) handled by the server
         -- set shine owner to the collecter
         shineOwner = set_player_owned_shine(m.playerIndex, o.oBehParams)
         cur_obj_change_action(0)
@@ -86,7 +99,7 @@ function bhv_shine_loop(o)
         -- create popup + sound
         network_send_include_self(true, {
             id = PACKET_SHINE,
-            grabbed = gNetworkPlayers[m.playerIndex].globalIndex,
+            victim = network_global_index_from_local(m.playerIndex),
         })
         -- send object
         send = true
@@ -99,16 +112,16 @@ function bhv_shine_loop(o)
     end
 
     -- handles bouncing and returning
-    if o.oAction == 0 and shineOwner == -1 and network_is_server() then
+    if o.oAction == 0 and shineOwner == -1 and network_is_server() then -- default action, can be picked up
         cur_obj_become_tangible()
         cur_obj_update_floor()
-        if is_hazard_floor(o.oFloorType) and cur_obj_lateral_dist_to_home() > 1 then
+        if is_hazard_floor(o.oFloorType) and dist_between_object_and_point(o, o.oLastSafePosX, o.oLastSafePosY, o.oLastSafePosZ) > 1 then
             shine_return(o)
             cur_obj_become_intangible()
         end
     elseif o.oAction == 1 and network_is_server() then -- bouncing on ground
         local prevY = o.oPosY
-        local stepResult = object_step_without_floor_orient()
+        local collisionFlags = object_step_without_floor_orient()
         cur_obj_update_floor()
 
         -- prevent ceiling clip
@@ -128,31 +141,36 @@ function bhv_shine_loop(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
         elseif is_hazard_floor(o.oFloorType)
-            and stepResult == OBJ_MOVE_LANDED then -- return if in quicksand or lava
+            and collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then -- return if in quicksand or lava
             shine_return(o)
             cur_obj_become_intangible()
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
-        elseif (o.oForwardVel < 2 and o.oVelY < 1) or (stepResult == OBJ_MOVE_LANDED and o.oTimer > 300) then -- sometimes the shine gets stuck on slopes, so stop automatically after 10 seconds
+        elseif (o.oForwardVel < 2 and o.oVelY < 1) or (collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 and o.oTimer > 300) then -- sometimes the shine gets stuck on slopes, so stop automatically after 10 seconds
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
             if is_hazard_floor(o.oFloorType) then
                 -- prevent shine from getting stuck on these floors
                 shine_return(o)
                 cur_obj_become_intangible()
-            elseif thisLevel and thisLevel.shineDefaultHeight then -- for fire sea
-                o.oForwardVel = 0
-                o.oPosY = thisLevel.shineDefaultHeight
-                cur_obj_change_action(0)
             elseif find_water_level(o.oPosX, o.oPosZ) > o.oFloorHeight then -- stay in place in water
                 o.oForwardVel = 0
                 cur_obj_change_action(0)
             else
                 o.oForwardVel = 0
-                o.oPosY = o.oFloorHeight +
-                    160 -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
+                o.oPosY = o.oFloorHeight + 160 -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
                 cur_obj_change_action(0)
             end
-        elseif stepResult == OBJ_MOVE_LANDED then
+        elseif collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then
             cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
+            -- update safe pos
+            if o.oFloor and not is_hazard_floor(o.oFloorType, o.oFloor.normal.y) then
+                o.oLastSafePosX = o.oPosX
+                if o.oPosY - o.oFloorHeight < 160 then
+                    o.oLastSafePosY = o.oFloorHeight + 160
+                else
+                    o.oLastSafePosY = o.oPosY + 160
+                end
+                o.oLastSafePosZ = o.oPosZ
+            end
         end
 
         send = true
@@ -162,9 +180,9 @@ function bhv_shine_loop(o)
         o.oPosY = o.oStarSpawnUnkFC + sins((o.oTimer * 0x8000) / 30) * 400 -- why?
         o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000                         -- spin faster
         if (o.oTimer == 30) then                                           -- always returns after 1 second
-            o.oPosX = o.oHomeX
-            o.oPosY = o.oHomeY
-            o.oPosZ = o.oHomeZ
+            o.oPosX = o.oLastSafePosX
+            o.oPosY = o.oLastSafePosY
+            o.oPosZ = o.oLastSafePosZ
 
             cur_obj_change_action(0)
             cur_obj_become_tangible()
@@ -182,13 +200,161 @@ function bhv_shine_loop(o)
     end
 end
 
+--- @param o Object
+function bhv_moon_loop(o)
+    local m = nearest_living_mario_state_to_object(o)
+    local isOwner = false
+    local send = false
+
+    if o.oObjectOwner == nil or o.oObjectOwner == 0 then
+        if o.oTimer > 30 then -- if no owner is found for 30s, give ownership to host
+            o.oObjectOwner = 1
+            isOwner = network_is_server()
+            send = true
+        end
+    elseif o.oObjectOwner == 1 then
+        isOwner = network_is_server()
+    else
+        -- owner is whoever dropped it, and they handle interaction (like how the host always handles interaction for shine thief)
+        local np = network_player_from_global_index(o.oObjectOwner - 1)
+        if np and np.localIndex == 0 then
+            isOwner = true
+        elseif np and np.connected and is_player_active(gMarioStates[np.localIndex]) ~= 0 then
+            -- nothing
+        else
+            o.oObjectOwner = 1
+            isOwner = network_is_server() -- give ownership to host if the owner dced
+            send = true
+        end
+    end
+    
+
+    o.oFaceAngleYaw = o.oFaceAngleYaw + 0x800 -- spin
+
+    if m and isOwner and gGlobalSyncTable.gameState ~= 1
+        and (o.oAction == 0 or o.oTimer > 30) 
+        and dist_between_objects(o, m.marioObj) <= 275 then -- interaction (only if shine has not been dropped recently)
+        obj_mark_for_deletion(o)
+        spawn_sync_object(id_bhvGoldenCoinSparkles, E_MODEL_SPARKLES, o.oPosX, o.oPosY, o.oPosZ, nil)
+        -- create popup + sound
+        if m.playerIndex == 0 then
+            on_packet_moon({ victim = network_global_index_from_local(0) })
+        else
+            network_send_to(m.playerIndex, true, {
+                id = PACKET_MOON,
+                victim = network_global_index_from_local(m.playerIndex),
+            })
+        end
+        send = true
+    end
+
+    -- handles bouncing and returning
+    if o.oAction == 0 then
+        cur_obj_become_tangible()
+        cur_obj_update_floor()
+        if isOwner and is_hazard_floor(o.oFloorType) and dist_between_object_and_point(o, o.oLastSafePosX, o.oLastSafePosY, o.oLastSafePosZ) > 1 then
+            shine_return(o)
+            cur_obj_become_intangible()
+            send = true
+        end
+    elseif o.oAction == 1 then -- bouncing on ground
+        send = true
+        local prevY = o.oPosY
+        local collisionFlags = object_step_without_floor_orient()
+        cur_obj_update_floor()
+
+        -- prevent ceiling clip
+        if ((o.oFloorHeight > prevY + 2 or (thisLevel and thisLevel.maxHeight and o.oPosY > thisLevel.maxHeight))) and o.oVelY > 2 then
+            o.oPosY = prevY
+            o.oVelY = 0
+        end
+
+        o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000 -- spin faster
+
+        if o.oTimer >= 10 then
+            cur_obj_become_tangible()
+        end
+
+        if (o.oFloorType == SURFACE_DEATH_PLANE or o.oFloorType == SURFACE_VERTICAL_WIND) and (o.oPosY - o.oFloorHeight < 2048) then -- return if fallen
+            if isOwner then shine_return(o) end
+            cur_obj_become_intangible()
+            cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
+        elseif is_hazard_floor(o.oFloorType)
+            and collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then -- return if in quicksand or lava
+            if isOwner then shine_return(o) end
+            cur_obj_become_intangible()
+            cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
+        elseif (o.oForwardVel < 2 and o.oVelY < 1) or (collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 and o.oTimer > 300) then -- sometimes the shine gets stuck on slopes, so stop automatically after 10 seconds
+            cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
+            if is_hazard_floor(o.oFloorType) then
+                -- prevent shine from getting stuck on these floors
+                if isOwner then shine_return(o) end
+                cur_obj_become_intangible()
+            elseif thisLevel and thisLevel.shineDefaultHeight then -- for fire sea
+                o.oForwardVel = 0
+                o.oPosY = thisLevel.shineDefaultHeight
+                cur_obj_change_action(0)
+            elseif find_water_level(o.oPosX, o.oPosZ) > o.oFloorHeight then -- stay in place in water
+                o.oForwardVel = 0
+                cur_obj_change_action(0)
+            else
+                o.oForwardVel = 0
+                o.oPosY = o.oFloorHeight + 160 -- Mario is 161 units tall; thus Mario is just barely able to pick this up without jumping
+                cur_obj_change_action(0)
+            end
+        elseif collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then
+            cur_obj_play_sound_1(SOUND_GENERAL_GRAND_STAR_JUMP)
+            -- update safe pos
+            if o.oFloor and not is_hazard_floor(o.oFloorType, o.oFloor.normal.y) then
+                o.oLastSafePosX = o.oPosX
+                if o.oPosY - o.oFloorHeight < 160 then
+                    o.oLastSafePosY = o.oFloorHeight + 160
+                else
+                    o.oLastSafePosY = o.oPosY + 160
+                end
+                o.oLastSafePosZ = o.oPosZ
+            end
+        end
+    elseif o.oAction == 2 then                                             -- return to home if off stage (from star code)
+        obj_move_xyz_using_fvel_and_yaw(o)
+        o.oStarSpawnUnkFC = o.oStarSpawnUnkFC + o.oVelY                    -- why?
+        o.oPosY = o.oStarSpawnUnkFC + sins((o.oTimer * 0x8000) / 30) * 400 -- why?
+        o.oFaceAngleYaw = o.oFaceAngleYaw + 0x1000                         -- spin faster
+        if (o.oTimer >= 30) and isOwner then                               -- always returns after 1 second
+            o.oPosX = o.oLastSafePosX
+            o.oPosY = o.oLastSafePosY
+            o.oPosZ = o.oLastSafePosZ
+
+            cur_obj_change_action(0)
+            cur_obj_become_tangible()
+            o.oForwardVel = 0
+        end
+        send = true
+    end
+
+    o.oInteractStatus = 0
+
+    -- send object data to clients
+    if isOwner and o.oSyncID ~= 0 and send then
+        network_send_object(o, true)
+    end
+end
+
 id_bhvShine = hook_behavior(nil, OBJ_LIST_LEVEL, true, bhv_shine_init, bhv_shine_loop, "bhvShine")
+id_bhvMoon = hook_behavior(nil, OBJ_LIST_LEVEL, true, bhv_shine_init, bhv_moon_loop, "bhvMoon")
 
 -- uses the same formula as stars
-function shine_return(shine)
-    shine.oMoveAngleYaw = atan2s(shine.oHomeZ - shine.oPosZ, shine.oHomeX - shine.oPosX)
-    shine.oShineDistFromHome = math.sqrt(sqrf(shine.oHomeX - shine.oPosX) + sqrf(shine.oHomeZ - shine.oPosZ))
-    shine.oVelY = (shine.oHomeY - shine.oPosY) / 30
+function shine_return(shine, home)
+    if home then
+        shine.oLastSafePosX, shine.oLastSafePosY, shine.oLastSafePosZ = shine.oHomeX, shine.oHomeY, shine.oHomeZ
+    end
+    if thisLevel and thisLevel.shineDefaultHeight then
+        shine.oLastSafePosY = thisLevel.shineDefaultHeight
+    end
+    local returnPos = {x = shine.oLastSafePosX, y = shine.oLastSafePosY, z = shine.oLastSafePosZ}
+    shine.oMoveAngleYaw = atan2s(returnPos.z - shine.oPosZ, returnPos.x - shine.oPosX)
+    shine.oShineDistFromHome = math.sqrt(sqrf(returnPos.x - shine.oPosX) + sqrf(returnPos.z - shine.oPosZ))
+    shine.oVelY = (returnPos.y - shine.oPosY) / 30
     shine.oForwardVel = shine.oShineDistFromHome / 30
     shine.oStarSpawnUnkFC = shine.oPosY
     shine.oTimer = 0
@@ -206,15 +372,15 @@ function lose_shine(index, dropType, attacker)
     if dropType ~= 2 and dropType ~= 3 then
         network_send_include_self(true, {
             id = PACKET_SHINE,
-            grabbed = np.globalIndex,
-            stealer = attacker and network_global_index_from_local(attacker),
+            victim = np.globalIndex,
+            attacker = attacker and network_global_index_from_local(attacker),
             lost = true,
         })
     elseif dropType == 3 then
         network_send_include_self(true, {
             id = PACKET_SHINE,
-            grabbed = np.globalIndex,
-            stealer = gNetworkPlayers[attacker].globalIndex,
+            victim = np.globalIndex,
+            attacker = gNetworkPlayers[attacker].globalIndex,
         })
     end
 
@@ -223,33 +389,51 @@ function lose_shine(index, dropType, attacker)
     if shine and network_is_server() then
         shine.oTimer = 0
         if dropType == 1 or dropType == 4 or dropType == 5 then -- fell off stage, spectator, respawn
-            shine_return(shine)
-        elseif dropType == 2 then              -- pass
+            shine_return(shine, (dropType ~= 1)) -- home if not fallen off stage
+        elseif dropType == 2 then -- pass
             shine.oVelY = 0
             shine.oAction = 3
 
             -- pass to closest teammate
-            local vel = 50
+            local vel = 60
             local angle = m.intendedYaw
-            local yDist = 0
+            local reachFrames = 15
             local team = gPlayerSyncTable[m.playerIndex].team
             local minDist = 3000
             for i = 0, MAX_PLAYERS - 1 do
-                if m.playerIndex ~= i and gPlayerSyncTable[i].team == team then
-                    local player = gMarioStates[i].marioObj
-                    local dist = dist_between_objects(m.marioObj, player)
-                    if minDist > dist then
-                        minDist = dist
-                        angle = obj_angle_to_object(shine, player)
-                        yDist = shine.oPosY - gMarioStates[i].pos.y
+                local m2 = gMarioStates[i]
+                if index ~= i and gPlayerSyncTable[i].team == team and not is_dead(i) then
+                    local pos = {x = m2.pos.x, y = m2.pos.y + 80, z = m2.pos.z}
+                    -- throw to floor/water level if not flying or swimming
+                    if m2.action & ACT_FLAG_SWIMMING_OR_FLYING == 0 then
+                        pos.y = math.max(m2.waterLevel, m2.floorHeight) + 80
+                    else
+                        pos.y = pos.y + m2.vel.y*15
+                    end
+                    local yDist = shine.oPosY - pos.y
+                    if yDist < 0 and yDist >= -80 then
+                        pos.y = pos.y - yDist
+                        yDist = 0
+                    end
+                    if yDist >= 0 then
+                        -- throw to ideal position based on speed
+                        local thisReachFrames = math.ceil((math.sqrt(4 * yDist + 1) - 1) / 2)
+                        if m2.action & ACT_FLAG_STATIONARY == 0 then
+                            pos.x = pos.x + m2.vel.x*thisReachFrames
+                            pos.z = pos.z + m2.vel.z*thisReachFrames
+                        end
+                        local dist = dist_between_object_and_point(m.marioObj, pos.x, pos.y, pos.z)
+                        if minDist > dist then
+                            minDist = dist
+                            angle = obj_angle_to_point(shine, pos.x, pos.z)
+                            reachFrames = thisReachFrames
+                        end
                     end
                 end
             end
 
             -- calculate velocity for perfect shot
-            if yDist > 0 then
-                vel = math.min((minDist / math.sqrt(0.8 * yDist)), vel)
-            end
+            vel = math.min(math.ceil(minDist / reachFrames), vel)
 
             shine.oForwardVel = vel
             shine.oMoveAngleYaw = angle
@@ -281,6 +465,10 @@ end
 local lastBalloonStolen = false
 local lastBalloonOwner = -1
 function lose_balloon(dropType, attacker)
+    if gGlobalSyncTable.reduceObjects then
+        lastBalloonOwner = network_global_index_from_local(0)
+    end
+    
     local sMario = gPlayerSyncTable[0]
     local steal = -1
     if dropType == 2 then -- pass balloons
@@ -304,15 +492,15 @@ function lose_balloon(dropType, attacker)
                 sMario.balloons = sMario.balloons - 1
                 network_send_to(passChoice, true, {
                     id = PACKET_BALLOON,
-                    sender = network_global_index_from_local(0),
+                    victim = network_global_index_from_local(0),
                     attacker = network_global_index_from_local(passChoice),
                     share = lastBalloonOwner,
                 })
                 on_packet_balloon({
-                    sender = network_global_index_from_local(0),
+                    victim = network_global_index_from_local(0),
                     attacker = network_global_index_from_local(passChoice),
                     share = lastBalloonOwner,
-                }, true)
+                })
                 lastBalloonStolen = true
             end
         end
@@ -328,28 +516,30 @@ function lose_balloon(dropType, attacker)
     if sMario.balloons == 0 then
         local gIndex = network_global_index_from_local(0)
         if dropType ~= 1 then
+            drop_item()
             go_to_mario_start(0, gIndex, true)
+        else
+            shuffleItem = 0
+            sMario.item = 0
+            sMario.itemUses = 0
         end
-        shuffleItem = 0
-        sMario.item = 0
-        sMario.itemUses = 0
 
-        if gGlobalSyncTable.gameMode == 1 and gGlobalSyncTable.gameState == 2 then
-            set_eliminated()
+        if (gGlobalSyncTable.gameMode == 1 or gGlobalSyncTable.showTime) and gGlobalSyncTable.gameState == 2 then
+            set_eliminated(0)
             network_send_include_self(true, {
                 id = PACKET_BALLOON,
-                sender = network_global_index_from_local(0),
+                victim = network_global_index_from_local(0),
                 attacker = attacker and network_global_index_from_local(attacker),
                 sideline = true,
                 steal = steal,
             })
         else
-            sMario.points = sMario.points // 1.5
+            sMario.points = math.floor(sMario.points // 1.5) -- using "//" alone causes float conversion
             sMario.balloons = gGlobalSyncTable.startBalloons or 3
             refillBalloons = 6 - (gGlobalSyncTable.startBalloons or 3)
             network_send_include_self(true, {
                 id = PACKET_BALLOON,
-                sender = gIndex,
+                victim = gIndex,
                 attacker = attacker and network_global_index_from_local(attacker),
                 sideline = true,
                 steal = steal,
@@ -358,66 +548,68 @@ function lose_balloon(dropType, attacker)
     elseif attacker then
         network_send_to(attacker, true, {
             id = PACKET_BALLOON,
-            sender = network_global_index_from_local(0),
+            victim = network_global_index_from_local(0),
             attacker = network_global_index_from_local(attacker),
             steal = steal,
         })
         on_packet_balloon({
             attacker = network_global_index_from_local(attacker),
-            sender = network_global_index_from_local(0),
+            victim = network_global_index_from_local(0),
             steal = steal,
-        }, true)
+        })
     else
         on_packet_balloon({
-            sender = network_global_index_from_local(0),
+            victim = network_global_index_from_local(0),
             fall = (dropType == 1),
-        }, true)
+        })
     end
 end
 
-function lose_coins(dropType, attacker)
-    local sMario = gPlayerSyncTable[0]
+function lose_coins(index, dropType, attacker)
+    local sMario = gPlayerSyncTable[index]
     if sMario.points == nil or sMario.points == 0 then return end
     local steal = 0
-    local initialPoints = sMario.points
+    local dropped = 0
     if dropType == 2 then -- no pass action here
         return
     elseif dropType == 3 then
-        sMario.points = math.max(0, sMario.points - 10)
-        steal = initialPoints - sMario.points
-    elseif dropType == 4 then -- spectate
-        sMario.points = 0
+        dropped = math.min(sMario.points, 10)
+        steal = dropped
+    elseif dropType == 4 or sMario.points <= 3 then -- spectate (or drop all 3)
+        dropped = sMario.points
     else
-        sMario.points = sMario.points // 1.5
+        dropped = clamp(sMario.points // 3, 3, 15)
     end
 
-    local dropped = initialPoints - sMario.points
     if dropped > 0 then
-        local gIndex = network_global_index_from_local(0)
+        sMario.points = sMario.points - dropped
+        local gIndex = network_global_index_from_local(index)
 
-        if attacker then
-            network_send_to(attacker, true, {
-                id = PACKET_LOSE_COINS,
-                sender = gIndex,
-                attacker = network_global_index_from_local(attacker),
+        if dropType ~= 4 then
+            if attacker then
+                network_send_to(attacker, true, {
+                    id = PACKET_LOSE_COINS,
+                    victim = gIndex,
+                    attacker = network_global_index_from_local(attacker),
+                    steal = steal,
+                    fall = (dropType == 1),
+                })
+            end
+            on_packet_lose_coins({
+                victim = gIndex,
+                attacker = attacker and network_global_index_from_local(attacker),
                 steal = steal,
                 fall = (dropType == 1),
             })
         end
-        on_packet_lose_coins({
-            sender = gIndex,
-            attacker = attacker and network_global_index_from_local(attacker),
-            steal = steal,
-            fall = (dropType == 1),
-        }, true)
 
         if dropType == 3 then return end
 
         -- spawn coins, blue ones too if the player has a lot
-        local m = gMarioStates[0]
+        local m = gMarioStates[index]
         local blue = 0
         local yellow = dropped
-        if dropped >= 10 then
+        if dropped > 10 then
             blue = dropped // 5 - 1
             yellow = dropped % 5 + 5
         end
@@ -431,12 +623,140 @@ function lose_coins(dropType, attacker)
                 model = E_MODEL_BLUE_COIN
             end
 
-            spawn_sync_object(id, model, x, y, z, nil)
+            spawn_sync_object(id, model, x, y, z, function(o)
+                o.oVelY = math.random(10, 50)
+                o.oForwardVel = math.random(5, 30)
+                o.oMoveAngleYaw = math.random(0, 0xFFFF)
+            end)
         end
     end
 end
 
-function handle_hit(index, dropType, attacker)
+function lose_moon(index, dropType, attacker)
+    local sMario = gPlayerSyncTable[index]
+    local steal = -1
+    local initialPoints = sMario.points
+    if dropType == 2 then -- share shines
+        if sMario.balloons > 1 then
+            local m = gMarioStates[index]
+            local team = sMario.team
+            local minDist = 500
+            local passChoice = -1
+            for i = 1, MAX_PLAYERS - 1 do
+                if gPlayerSyncTable[i].team == team and (not is_dead(i)) then
+                    local player = gMarioStates[i].marioObj
+                    local dist = dist_between_objects(m.marioObj, player)
+                    if minDist > dist then
+                        minDist = dist
+                        passChoice = i
+                    end
+                end
+            end
+
+            if passChoice ~= -1 then
+                sMario.points = sMario.points - 1
+                network_send_to(passChoice, true, {
+                    id = PACKET_MOON,
+                    victim = network_global_index_from_local(index),
+                    attacker = network_global_index_from_local(passChoice),
+                    share = true,
+                })
+                on_packet_moon({
+                    victim = network_global_index_from_local(index),
+                    attacker = network_global_index_from_local(passChoice),
+                    share = true,
+                })
+            end
+        end
+        return
+    elseif dropType == 3 then
+        sMario.points = sMario.points - 1
+        steal = 1
+        lastBalloonStolen = true
+    elseif dropType == 4 then
+        sMario.points = 0
+    else
+        sMario.points = sMario.points - 1
+    end
+
+    local dropped = (initialPoints - sMario.points)
+    if steal == -1 and dropped > 0 then
+        local m = gMarioStates[index]
+        local x, y, z = m.pos.x, m.pos.y, m.pos.z
+        for i = 1, dropped do
+            spawn_sync_object(id_bhvMoon, E_MODEL_MOON, x, y, z, function(moon)
+                local validMarks = {}
+                local mark = obj_get_first_with_behavior_id(id_bhvShineMarker)
+                local firstMark = mark
+                while mark do
+                    if mark.oBehParams == 0 then
+                        table.insert(validMarks, mark)
+                    end
+                    mark = obj_get_next_with_same_behavior_id(mark)
+                end
+                if #validMarks ~= 0 then
+                    mark = validMarks[math.random(1, #validMarks)]
+                    mark.parentObj = moon
+                    mark.oBehParams = moon.oSyncID
+                    if mark.oSyncID ~= 0 then
+                        network_send_object(mark, true)
+                    end
+                    moon.oHomeX, moon.oHomeY, moon.oHomeZ = mark.oPosX, mark.oPosY,
+                        mark.oPosZ
+                elseif dropType == 0 then
+                    moon.oHomeX, moon.oHomeY, moon.oHomeZ = x, y + 40, z
+                elseif firstMark then
+                    moon.oHomeX, moon.oHomeY, moon.oHomeZ = firstMark.oPosX + 100, firstMark.oPosY, firstMark.oPosZ
+                end
+                moon.oHomeY = moon.oHomeY + 120
+                moon.oObjectOwner = network_global_index_from_local(0) + 1 -- if host spawns, they own it
+
+                -- update last safe pos
+                if not (is_hazard_floor(m.floor.type) or mario_floor_is_slippery(m) ~= 0) then
+                    moon.oLastSafePosX = x
+                    moon.oLastSafePosY = m.floorHeight + 160
+                    moon.oLastSafePosZ = z
+                else
+                    moon.oLastSafePosX = moon.oHomeX
+                    moon.oLastSafePosY = moon.oHomeY
+                    moon.oLastSafePosZ = moon.oHomeZ
+                end
+
+                if dropType ~= 0 then
+                    shine_return(moon, (dropType ~= 1))
+                else
+                    moon.oVelY = 50
+                    moon.oAction = 1
+                    moon.oForwardVel = 20
+                    moon.oMoveAngleYaw = math.random(0, 0xFFFF) -- random; any direction
+                end
+            end)
+        end
+    end
+
+    if dropType == 4 then return end
+
+    if dropType ~= 4 then
+        if attacker then
+            network_send_include_self(true, {
+                id = PACKET_MOON,
+                victim = network_global_index_from_local(index),
+                attacker = network_global_index_from_local(attacker),
+                steal = steal,
+                lost = true,
+            })
+        else
+            network_send_include_self(true, {
+                id = PACKET_MOON,
+                victim = network_global_index_from_local(index),
+                lost = true,
+            })
+        end
+    end
+end
+
+function handle_hit(index, dropType, attacker, item)
+    if attacker == 0 then attacker = nil end -- prevent hurting ourselves
     if gGlobalSyncTable.gameMode == 0 then
         if get_player_owned_shine(index) == 0 then return end
         if not network_is_server() then
@@ -447,7 +767,7 @@ function handle_hit(index, dropType, attacker)
             if attacker ~= nil then globalAttacker = network_global_index_from_local(attacker) end
             network_send_to(1, true, {
                 id = PACKET_DROP_SHINE,
-                owner = owner,
+                victim = owner,
                 dropType = dropType,
                 attacker = globalAttacker,
             })
@@ -463,24 +783,83 @@ function handle_hit(index, dropType, attacker)
     elseif gGlobalSyncTable.gameMode == 3 then
         local sMario = gPlayerSyncTable[index]
         if (gGlobalSyncTable.gameState == 0 or gGlobalSyncTable.gameState == 2) and index == 0 and sMario.points ~= 0 and (dropType == 4 or not is_spectator(0)) then
-            lose_coins(dropType, attacker)
+            lose_coins(index, dropType, attacker)
+        end
+    elseif gGlobalSyncTable.gameMode == 4 then
+        if index ~= 0 or is_dead(index) then return end
+        if dropType == 2 then return end
+        if (gGlobalSyncTable.gameState ~= 0 and gGlobalSyncTable.gameState ~= 2) then return end
+        local sMario = gPlayerSyncTable[index]
+        if gGlobalSyncTable.gameMode == 4 and sMario.showOnMap ~= -1 then
+            sMario.showOnMap = 45 -- show on map when hurt
+        end
+        if (not item) and (attacker or dropType ~= 0) and sMario.team ~= 2 then
+            sMario.eliminated = math.random(1, 3)
+            if dropType ~= 1 and index == 0 then
+                drop_item()
+            else
+                sMario.item, sMario.itemUses = 0, 0
+                shuffleItem = 0
+            end
+            local owner = nil
+            if index ~= nil then owner = network_global_index_from_local(index) end
+            local globalAttacker = nil
+            if attacker ~= nil then globalAttacker = network_global_index_from_local(attacker) end
+
+            network_send_include_self(true, {
+                id = PACKET_CAPTURE,
+                victim = owner,
+                attacker = globalAttacker,
+            })
+        end
+    elseif gGlobalSyncTable.gameMode == 5 then
+        local sMario = gPlayerSyncTable[index]
+        if (gGlobalSyncTable.gameState == 0 or gGlobalSyncTable.gameState == 2) and index == 0 and sMario.points ~= 0 and (dropType == 4 or not is_spectator(0)) then
+            lose_moon(index, dropType, attacker)
         end
     end
 end
 
-function set_eliminated()
-    local sMario = gPlayerSyncTable[0]
+function set_eliminated(index, lowest)
+    local sMario = gPlayerSyncTable[index]
     if sMario.eliminated ~= 0 then return end
     sMario.isBomb = (gGlobalSyncTable.bombSetting ~= 0) and not sMario.spectator
     sMario.item, sMario.itemUses = 0, 0
+    if index == 0 then
+        stop_cap_music()
+        shuffleItem = 0
+    end
+    sMario.star, sMario.bulletTimer, sMario.smallTimer = false, 0, 0
 
+    if lowest then
+        sMario.eliminated = 2
+        return
+    end
     local max = 1
     for i = 1, MAX_PLAYERS - 1 do
-        if sMario.eliminated > max then
-            max = sMario.eliminated
+        local sMario2 = gPlayerSyncTable[i]
+        if sMario2.eliminated > max then
+            max = sMario2.eliminated
         end
     end
     sMario.eliminated = max + 1
+end
+
+-- gets nearest mario state that is alive to an object
+function nearest_living_mario_state_to_object(o)
+    local maxDist = -1
+    local nearestM
+    for i=0,MAX_PLAYERS-1 do
+        local m = gMarioStates[i]
+        if is_player_active(m) ~= 0 and not is_dead(i) then
+            local dist = dist_between_objects(m.marioObj, o)
+            if maxDist == -1 or dist < maxDist then
+                maxDist = dist
+                nearestM = m
+            end
+        end
+    end
+    return nearestM
 end
 
 -- command to reset shine
@@ -488,31 +867,39 @@ function reset_shine_command(msg)
     if not (network_is_server() or network_is_moderator()) then
         djui_chat_message_create("You lack the power, young one.")
         return true
+    elseif gGlobalSyncTable.gameMode ~= 0 and gGlobalSyncTable.gameMode ~= 5 then
+        djui_chat_message_create("Not availabe in this mode!")
+        return true
     end
 
     network_send_include_self(true, {
         id = PACKET_RESET_SHINE,
+        reset = tonumber(msg),
     })
     return true
 end
 
-hook_chat_command("reset", "- Resets the shine", reset_shine_command)
+hook_chat_command("reset", "[NUM] - Resets the shine or moon", reset_shine_command)
 
 -- command to move shine
 function move_shine_command(msg)
     if not (network_is_server() or network_is_moderator()) then
         djui_chat_message_create("You lack the power, young one.")
         return true
+    elseif gGlobalSyncTable.gameMode ~= 0 and gGlobalSyncTable.gameMode ~= 4 and gGlobalSyncTable.gameMode ~= 5 then
+        djui_chat_message_create("Not availabe in this mode!")
+        return true
     end
 
     network_send_include_self(true, {
         id = PACKET_MOVE_SHINE,
-        mover = gNetworkPlayers[0].globalIndex,
+        mover = network_global_index_from_local(0),
+        moved = tonumber(msg),
     })
     return true
 end
 
-hook_chat_command("move", " - Moves the shine to where you are standing", move_shine_command)
+hook_chat_command("move", "[NUM] - Moves the shine, moon, or cage to where you are standing", move_shine_command)
 
 -- pipes
 --- @param o Object
@@ -526,13 +913,12 @@ function st_pipe_init(o)
     o.collisionData = smlua_collision_util_get("warp_pipe_seg3_collision_03009AC8")
     load_object_collision_model()
     o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
-
 end
 
 --- @param o Object
 function st_pipe_loop(o)
     local m = nearest_mario_state_to_object(o)
-    if m and (o.oInteractStatus & INT_STATUS_INTERACTED) ~= 0 then
+    if m and obj_check_if_collided_with_object(o, m.marioObj) == 1 then
         local pair = obj_get_first_with_behavior_id_and_field_s32(id_bhvSTPipe, 0x40, o.oBehParams2ndByte) -- 0x40 is "oBehParams"
         if pair then
             if pair.oFaceAnglePitch >= 0 then
@@ -552,11 +938,14 @@ function st_pipe_loop(o)
             m.pos.z = pair.oPosZ
             m.faceAngle.y = pair.oFaceAngleYaw
             --m.actionTimer = 11
-            cur_obj_play_sound_1(SOUND_MENU_ENTER_PIPE)
             if m.playerIndex == 0 then
-                -- TODO: Set camera yaw to behind mario
-                soft_reset_camera(m.area.camera)
-                center_rom_hack_camera()
+                cur_obj_play_sound_1(SOUND_MENU_ENTER_PIPE)
+                soft_reset_camera_fix_bug(m.area.camera)
+                warp_camera(m.pos.x - gLakituState.curPos.x, m.pos.y - gLakituState.curPos.y, m.pos.z - gLakituState.curPos.z)
+                skip_camera_interpolation()
+                m.statusForCamera.pos.y = m.pos.y
+                m.statusForCamera.faceAngle.y = m.faceAngle.y
+                m.area.camera.yaw = m.faceAngle.y
             end
         end
         o.oInteractStatus = 0
@@ -572,19 +961,22 @@ function shine_marker_init(o)
     o.oFlags = (OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
     cur_obj_scale(1.5)
     o.header.gfx.scale.z = 0.75
-    network_init_object(o, false, nil)
+    network_init_object(o, true, {
+        'oBehParams',
+    })
 end
 
 --- @param o Object
 function shine_marker_loop(o)
-    prevent_obj_dupe(o)
     o.oFaceAngleYaw = o.oFaceAngleYaw + 0x100
     o.oFaceAnglePitch = 0x4000
 
+    if gGlobalSyncTable.gameState ~= 1 and gGlobalSyncTable.gameState ~= 2 then return end
+
     -- anti-camp
-    local m = gMarioStates[0]
+    --[[local m = gMarioStates[0]
     local dist = dist_between_objects(o, m.marioObj)
-    if dist < 400 and gGlobalSyncTable.gameState == 2 and get_player_owned_shine(0) == 0 then
+    if dist < 400 and get_player_owned_shine(0) == 0 then
         if o.oTimer > 150 then
             djui_popup_create("No camping the spawn point!", 1)
 
@@ -603,17 +995,41 @@ function shine_marker_loop(o)
         end
     else
         o.oTimer = 0
-    end
+    end]]
 
-    if not o.parentObj then
+    local id = (o.parentObj and get_id_from_behavior(o.parentObj.behavior)) or 0
+    local sync = (o.oTimer < 5)
+    if id ~= id_bhvShine and id ~= id_bhvMoon then
         -- re-find shine
-        local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, o.oBehParams) -- 0x40 is "oBehParams"
-        if not shine then return end
-        o.parentObj = shine
+        o.parentObj = nil
+        if gGlobalSyncTable.gameMode == 0 then
+            local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvShine, 0x40, o.oBehParams) -- 0x40 is "oBehParams"
+            if not shine then return end
+            o.parentObj = shine
+        else
+            local shine = obj_get_first_with_behavior_id_and_field_s32(id_bhvMoon, 0x04, o.oBehParams) -- 0x04 is "oSyncID"
+            if not shine then
+                o.oBehParams = 0
+                if network_is_server() then
+                    network_send_object(o, true)
+                end
+                return
+            else
+                o.oBehParams = shine.oSyncID
+                sync = true
+                o.parentObj = shine
+            end
+        end
     end
-    o.oPosX = o.parentObj.oHomeX
-    o.oPosY = o.parentObj.oHomeY - 120
-    o.oPosZ = o.parentObj.oHomeZ
+    if o.parentObj.oObjectOwner ~= 0 then
+        local prevPos = { o.oPosX, o.oPosY, o.oPosZ }
+        o.oPosX = o.parentObj.oHomeX
+        o.oPosY = o.parentObj.oHomeY - 120
+        o.oPosZ = o.parentObj.oHomeZ
+        if network_is_server() and (sync or prevPos[1] ~= o.oPosX or prevPos[2] ~= o.oPosY or prevPos[3] ~= o.oPosZ) then
+            network_send_object(o, true)
+        end
+    end
 end
 
 id_bhvShineMarker = hook_behavior(nil, OBJ_LIST_DEFAULT, true, shine_marker_init, shine_marker_loop, "bhvShineMarker")
@@ -621,7 +1037,7 @@ id_bhvShineMarker = hook_behavior(nil, OBJ_LIST_DEFAULT, true, shine_marker_init
 -- somewhat based on the arena bob-omb
 --- @param o Object
 function thrown_bomb_init(o)
-    o.oFlags = (OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW | OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE | OBJ_FLAG_COMPUTE_DIST_TO_MARIO)
+    o.oFlags = (OBJ_FLAG_SET_FACE_YAW_TO_MOVE_YAW | OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE)
     o.oAnimations = gObjectAnimations.bobomb_seg8_anims_0802396C
     o.oFaceAnglePitch = 0
     o.oFaceAngleRoll = 0
@@ -657,7 +1073,7 @@ function thrown_bomb_loop(o)
             obj_set_model_extended(o, E_MODEL_EXPLOSION)
             obj_set_billboard(o)
             bhv_explosion_init()
-
+            
             o.oAnimState = -1
             if (o.oInteractStatus & INT_STATUS_ATTACKED_MARIO) ~= 0 then
                 network_send_object(o, true)
@@ -678,54 +1094,121 @@ function item_box_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oOpacity = 200
     local hitbox = get_temp_object_hitbox()
-    hitbox.interactType = INTERACT_WATER_RING -- Don't want to have INTERACT_STAR because it has hard-coded behavior
+    hitbox.interactType = INTERACT_WATER_RING -- Has no hard-coded behavior
     hitbox.radius = 80
-    hitbox.height = 80
-    hitbox.downOffset = 30
+    hitbox.height = 150
+    hitbox.downOffset = 70
     obj_set_hitbox(o, hitbox)
     o.oFaceAngleYaw = math.random(0, 0xFFFF)
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleRoll = 0
+    o.globalPlayerIndex = network_global_index_from_local(0)
 
     network_init_object(o, false, {
         'oTimer',
-        'oAction'
+        'oAction',
+        'oBalloonAppearance',
     })
 end
 
 function item_box_loop(o)
-    prevent_obj_dupe(o)
-    local m = nearest_mario_state_to_object(o)
+    local m = nearest_living_mario_state_to_object(o)
+
+    local respawnTime = 120
+    local baseScale = 1
+    if gGlobalSyncTable.arenaStyleItems then
+        respawnTime = 300
+        if m and o.oBalloonAppearance == 0 and network_is_server() then
+            o.oBalloonAppearance = random_item(m.playerIndex, true) or 0
+            if o.oSyncID ~= 0 then
+                network_send_object(o, true)
+            end
+        end
+    else
+        obj_set_model_extended(o, E_MODEL_ITEM_BOX)
+        o.oBalloonAppearance = 0
+        o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+    end
+
+    if o.oBalloonAppearance ~= 0 then
+        local data = item_data[o.oBalloonAppearance]
+        if not data then
+            o.oBalloonAppearance = 0
+            obj_set_model_extended(o, E_MODEL_ITEM_BOX)
+            o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+        else
+            obj_set_model_extended(o, (data.arenaModel or data.model))
+            if not data.arenaModel then
+                if data.bill then
+                    obj_set_billboard(o)
+                else
+                    o.header.gfx.node.flags = o.header.gfx.node.flags & ~GRAPH_RENDER_BILLBOARD
+                end
+                if data.scale then
+                    baseScale = data.scale
+                end
+                if data.hand then
+                    baseScale = baseScale * 2
+                end
+                if data.animation then
+                    o.oAnimations = data.animation
+                    cur_obj_init_animation(0)
+                else
+                    o.oAnimations = nil
+                end
+            end
+        end
+    end
 
     if o.oAction == 0 then
         cur_obj_enable_rendering_and_become_tangible(o)
-        cur_obj_scale(1)
+        cur_obj_scale(baseScale)
     elseif o.oAction == 1 then
         if o.oTimer == 1 then
             spawn_triangle_break_particles(4, 0x8B, 0.25, 0) -- MODEL_CARTOON_STAR
         end
         cur_obj_become_intangible()
         if o.oTimer < 5 then
-            cur_obj_scale_over_time(7, 5, 1, 0)
-        elseif o.oTimer < 120 then
+            cur_obj_scale_over_time(7, 5, baseScale, 0)
+        elseif o.oTimer < respawnTime then
             cur_obj_disable_rendering()
+        elseif m and gGlobalSyncTable.arenaStyleItems then
+            if m.playerIndex == 0 then
+                o.oBalloonAppearance = random_item(0, true) or 0
+                cur_obj_enable_rendering()
+                cur_obj_change_action(2)
+                if o.oSyncID ~= 0 then
+                    network_send_object(o, true)
+                end
+            end
         else
             cur_obj_enable_rendering()
             cur_obj_change_action(2)
+            o.oBalloonAppearance = 0
         end
     elseif o.oTimer < 5 then
-        cur_obj_scale_over_time(7, 5, 0, 1)
+        cur_obj_scale_over_time(7, 5, 0, baseScale)
     else
         cur_obj_change_action(0)
-        cur_obj_scale(1)
+        cur_obj_scale(baseScale)
     end
     o.oFaceAngleYaw = o.oFaceAngleYaw + 100
 
+    if not m then return end
     local sMario = gPlayerSyncTable[m.playerIndex]
-    if o.oAction == 0 and o.oInteractStatus ~= 0 and m.playerIndex == 0 and shuffleItem == 0 and sMario.item == 0 and (not sMario.isBomb) then
+    if o.oAction == 0 and o.oInteractStatus ~= 0 and m.playerIndex == 0 and shuffleItem == 0 and sMario.item == 0 and not is_dead(0) then
         cur_obj_change_action(1)
         o.oTimer = 0
-        shuffleItem = random_item()
+        if o.oBalloonAppearance == 0 then
+            shuffleItem = random_item(0)
+        else
+            sMario.item = o.oBalloonAppearance
+            sMario.itemUses = 0
+        end
         cur_obj_play_sound_1(SOUND_GENERAL_COLLECT_1UP)
-        network_send_object(o, true)
+        if o.oSyncID ~= 0 then
+            network_send_object(o, true)
+        end
     end
     o.oInteractStatus = 0
 end
@@ -742,18 +1225,22 @@ function balloon_init(o)
     cur_obj_scale(0.75)
 
     network_init_object(o, false, {
+        'oPosX',
+        'oPosY',
+        'oPosZ',
+        --'oForwardVel',
+        --'oVelY',
         'oBalloonAppearance',
         'oObjectOwner',
         'oAction',
-        'activeFlags',
-        'oBalloonNumber',     -- what number balloon this is
+        'oBalloonNumber',    -- what number balloon this is
         'oBalloonNextExists' -- for checking if the upper balloon exists
     })
+    --log_to_console("Spawn balloon: "..tostring(o.oObjectOwner-1)..", "..tostring(o.oSyncID)..", "..tostring(o.oBalloonNumber))
 end
 
 ---@param o Object
 function balloon_loop(o)
-    prevent_obj_dupe(o)
     if o.oObjectOwner == 0 then
         if o.oTimer > 30 then
             obj_mark_for_deletion(o)
@@ -762,19 +1249,51 @@ function balloon_loop(o)
     end
 
     local index = network_local_index_from_global(o.oObjectOwner - 1)
-    if not index then
+    if not (index and gNetworkPlayers[index].connected) then
         obj_mark_for_deletion(o)
+        if o.parentObj then
+            o.parentObj.oBalloonNextExists = 0
+        end
         return
     end
     local m = gMarioStates[index]
 
-    if index == 0 and o.oSyncID ~= 0 and o.activeFlags & ACTIVE_FLAG_DEACTIVATED ~= 0 then
-        network_send_object(o, true)
+    if gGlobalSyncTable.reduceObjects then
+        cur_obj_disable_rendering()
         return
     end
 
+    if index == 0 then
+        if o.oSyncID == 0 then -- sometimes this happens for some reason, replace balloon
+            spawn_sync_object(id_bhvBalloon, E_MODEL_BALLOON, o.oPosX, o.oPosY, o.oPosZ, function(other)
+                other.oBalloonNumber = o.oBalloonNumber
+                other.parentObj = o.parentObj
+                other.oObjectOwner = o.oObjectOwner
+                other.oBehParams = o.oBehParams
+                other.oBalloonAppearance = o.oBalloonAppearance
+                other.oBalloonNextExists = o.oBalloonNextExists
+                if other.oBalloonNextExists ~= 0 then
+                    local other2 = obj_get_first_with_behavior_id(id_bhvBalloon)
+                    while other2 do
+                        if other2.parentObj == o then
+                            other2.parentObj = other
+                            break
+                        end
+                        other2 = obj_get_next_with_same_behavior_id(other2)
+                    end
+                end
+                obj_mark_for_deletion(o)
+            end)
+            return
+        elseif o.activeFlags & ACTIVE_FLAG_DEACTIVATED ~= 0 then
+            network_send_object(o, false)
+            return
+        end
+    end
+
     if index ~= 0 and is_player_active(m) == 0 then
-        obj_mark_for_deletion(o)
+        --obj_mark_for_deletion(o)
+        cur_obj_disable_rendering()
         return
     end
 
@@ -795,13 +1314,13 @@ function balloon_loop(o)
             else
                 cur_obj_change_action(1)
             end
-        elseif m.playerIndex == 0 and sMario.balloons > o.oBalloonNumber and o.oBalloonNextExists == 0 and o.oTimer > 5 then
-            local other = spawn_sync_object(id_bhvBalloon, E_MODEL_BALLOON, o.oPosX, o.oPosY, o.oPosZ, nil)
-            if other then
-                play_sound(SOUND_MENU_YOSHI_GAIN_LIVES, m.marioObj.header.gfx.cameraToObject)
+        elseif index == 0 and sMario.balloons > o.oBalloonNumber and o.oBalloonNextExists == 0 and o.oTimer > 5 then
+            spawn_sync_object(id_bhvBalloon, E_MODEL_BALLOON, o.oPosX, o.oPosY, o.oPosZ, function(other)
+                play_sound(SOUND_MENU_YOSHI_GAIN_LIVES, gGlobalSoundSource)
                 other.oBalloonNumber = o.oBalloonNumber + 1
                 other.parentObj = o
                 other.oObjectOwner = o.oObjectOwner
+                other.oBehParams = o.oBehParams + 1
 
                 if newBalloonOwner ~= -1 then
                     other.oBalloonAppearance = newBalloonOwner
@@ -811,42 +1330,53 @@ function balloon_loop(o)
                 end
                 lastBalloonOwner = other.oBalloonAppearance
                 o.oBalloonNextExists = 1
-            end
+            end)
         end
 
-        local distFromBalloon = 30
-        local sinYaw = sins(m.faceAngle.y)
-        local cosYaw = coss(m.faceAngle.y)
-        local pos = { m.pos.x, m.pos.y + 170, m.pos.z }
-        o.oFaceAngleYaw = m.faceAngle.y
-        if o.oTimer ~= 1 then
+        if index == 0 then
+            local distFromBalloon = 30
+            local sinYaw = sins(m.faceAngle.y)
+            local cosYaw = coss(m.faceAngle.y)
+            local pos = { m.pos.x, m.pos.y + 170, m.pos.z }
+            o.oFaceAngleYaw = m.faceAngle.y
+            if o.oTimer ~= 1 then
+                if o.oBalloonNumber % 2 == 0 then
+                    pos[1] = pos[1] + cosYaw * distFromBalloon * o.oBalloonNumber
+                    pos[2] = pos[2] - 10 * o.oBalloonNumber
+                    pos[3] = pos[3] - sinYaw * distFromBalloon * o.oBalloonNumber
+                    o.oFaceAngleRoll = -0x800 * o.oBalloonNumber
+                elseif o.oBalloonNumber ~= 1 then
+                    pos[1] = pos[1] - cosYaw * distFromBalloon * (o.oBalloonNumber - 1)
+                    pos[2] = pos[2] - 10 * (o.oBalloonNumber - 1)
+                    pos[3] = pos[3] + sinYaw * distFromBalloon * (o.oBalloonNumber - 1)
+                    o.oFaceAngleRoll = 0x800 * (o.oBalloonNumber - 1)
+                else
+                    o.oFaceAngleRoll = 0
+                end
+
+                local dist = dist_between_object_and_point(o, pos[1], o.oPosY, pos[3])
+
+                if dist > 30 then
+                    o.oMoveAngleYaw = obj_angle_to_point(o, pos[1], pos[3])
+                    o.oForwardVel = dist // 3 + 1
+                else
+                    o.oForwardVel = 0
+                end
+                o.oVelY = math.ceil((pos[2] - o.oPosY) / 3)
+                obj_move_xyz_using_fvel_and_yaw(o)
+            else
+                o.oFaceAngleRoll = 0
+                o.oPosX, o.oPosY, o.oPosZ = pos[1], pos[2], pos[3]
+            end
+        else
+            o.oFaceAngleYaw = m.faceAngle.y
             if o.oBalloonNumber % 2 == 0 then
-                pos[1] = pos[1] + cosYaw * distFromBalloon * o.oBalloonNumber
-                pos[2] = pos[2] - 10 * o.oBalloonNumber
-                pos[3] = pos[3] - sinYaw * distFromBalloon * o.oBalloonNumber
                 o.oFaceAngleRoll = -0x800 * o.oBalloonNumber
             elseif o.oBalloonNumber ~= 1 then
-                pos[1] = pos[1] - cosYaw * distFromBalloon * (o.oBalloonNumber - 1)
-                pos[2] = pos[2] - 10 * (o.oBalloonNumber - 1)
-                pos[3] = pos[3] + sinYaw * distFromBalloon * (o.oBalloonNumber - 1)
                 o.oFaceAngleRoll = 0x800 * (o.oBalloonNumber - 1)
             else
                 o.oFaceAngleRoll = 0
             end
-
-            local dist = dist_between_object_and_point(o, pos[1], o.oPosY, pos[3])
-
-            if dist > 30 then
-                o.oMoveAngleYaw = obj_angle_to_point(o, pos[1], pos[3])
-                o.oForwardVel = dist // 3 + 1
-            else
-                o.oForwardVel = 0
-            end
-            o.oVelY = math.ceil((pos[2] - o.oPosY) / 3)
-            obj_move_xyz_using_fvel_and_yaw(o)
-        else
-            o.oFaceAngleRoll = 0
-            o.oPosX, o.oPosY, o.oPosZ = pos[1], pos[2], pos[3]
         end
     elseif o.oAction == 1 then
         o.oFaceAngleRoll = 0
@@ -861,10 +1391,10 @@ function balloon_loop(o)
     else
         cur_obj_disable_rendering()
     end
-        
+
     if o.oAction ~= 0 and sMario.balloons >= o.oBalloonNumber then
         if index == 0 then
-            play_sound(SOUND_MENU_YOSHI_GAIN_LIVES, m.marioObj.header.gfx.cameraToObject)
+            play_sound(SOUND_MENU_YOSHI_GAIN_LIVES, gGlobalSoundSource)
             if newBalloonOwner ~= -1 then
                 o.oBalloonAppearance = newBalloonOwner
                 newBalloonOwner = -1
@@ -877,17 +1407,134 @@ function balloon_loop(o)
     end
 
     if index == 0 and o.oSyncID ~= 0 then
-        network_send_object(o, true)
+        network_send_object(o, false) -- trying this as unreliable, since they're visual only
     end
 end
 
 id_bhvBalloon = hook_behavior(nil, OBJ_LIST_DEFAULT, true, balloon_init, balloon_loop, "bhvBalloon")
+
+-- renegade roundup cage
+---@param o Object
+function rr_cage_init(o)
+    o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
+    o.oFaceAnglePitch = 0
+    o.oFaceAngleRoll = 0
+    o.oFaceAngleYaw = 0
+
+    o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
+    o.oGravity = 2
+    o.oBounciness = 0
+    o.oBuoyancy = 1.4
+    o.oFriction = 0
+
+    -- host only, like the shine
+    network_init_object(o, false, {
+        'oPosX',
+        'oPosY',
+        'oPosZ',
+        'oHomeX',
+        'oHomeY',
+        'oHomeZ',
+        'oVelY',
+        'oAction',
+        'oAnimState',
+        'oBehParams',
+    })
+end
+
+---@param o Object
+function rr_cage_loop(o)
+    if network_is_server() then
+        local visible = false
+        local trapped = 0
+        for i = 0, MAX_PLAYERS - 1 do
+            local m = gMarioStates[i]
+            if is_player_active(m) ~= 0 then
+                local sMario = gPlayerSyncTable[i]
+                if sMario.eliminated == o.oBehParams then
+                    visible = true
+                    trapped = trapped + 1
+                    if o.oAction == 0 then break end
+                elseif o.oAction ~= 0 and gGlobalSyncTable.gameState ~= 3 and sMario.team ~= 2 and not is_dead(i) then
+                    local dist = dist_between_objects(o, m.marioObj)
+                    if dist <= 275 or o.oObjectOwner == m.playerIndex + 1 then
+                        trapped = 0
+                        for a = 0, MAX_PLAYERS - 1 do
+                            local sMario = gPlayerSyncTable[a]
+                            if sMario.eliminated == o.oBehParams then
+                                trapped = trapped + 1
+                                sMario.eliminated = 0
+                            end
+                        end
+                        if trapped ~= 0 then
+                            visible = false
+                            network_send_include_self(true, {
+                                id = PACKET_CAPTURE,
+                                free = o.oBehParams,
+                                victim = network_global_index_from_local(i),
+                                points = trapped,
+                            })
+                        end
+                        break
+                    end
+                end
+            end
+        end
+        o.oAnimState = trapped
+        o.oObjectOwner = 0
+
+        if (not visible) and o.oAction ~= 0 then
+            o.oPosX, o.oPosY, o.oPosZ = o.oHomeX, o.oHomeY, o.oHomeZ
+            cur_obj_change_action(0)
+            if network_is_server() and o.oSyncID ~= 0 then
+                network_send_object(o, true)
+            end
+        elseif visible and o.oAction == 0 and o.oTimer > 30 then
+            o.oPosX, o.oPosY, o.oPosZ = o.oHomeX, o.oHomeY, o.oHomeZ
+            cur_obj_change_action(2)
+        end
+    end
+
+    if o.oAction == 0 then
+        cur_obj_disable_rendering()
+        return
+    end
+    cur_obj_enable_rendering()
+
+    if o.oAction == 4 then
+        o.oPosX, o.oPosY, o.oPosZ = o.oHomeX, o.oHomeY, o.oHomeZ
+        o.header.gfx.pos.x, o.header.gfx.pos.y, o.header.gfx.pos.z = o.oHomeX, o.oHomeY, o.oHomeZ
+    else
+        if o.oAction == 1 then
+            o.oVelY = 30
+            cur_obj_play_sound_1(SOUND_OBJ_MR_BLIZZARD_ALERT)
+            cur_obj_change_action(2)
+        end
+        local collisionFlags = object_step()
+        cur_obj_update_floor()
+        if (is_hazard_floor(o.oFloorType) and o.oPosY < o.oHomeY) then
+            cur_obj_change_action(4)
+        elseif collisionFlags & OBJ_COL_FLAG_GROUNDED ~= 0 then
+            o.oVelY = 0
+            if o.oAction ~= 3 then
+                cur_obj_change_action(3)
+            end
+        end
+    end
+
+    if network_is_server() and o.oSyncID ~= 0 then
+        network_send_object(o, true)
+    end
+end
+
+id_bhvRRCage = hook_behavior(nil, OBJ_LIST_LEVEL, true, rr_cage_init, rr_cage_loop, "bhvRRCage")
 
 -- held items by players
 function held_item_init(o)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
     o.oFaceAnglePitch = 0
     o.oFaceAngleYaw = 0
+    o.oOpacity = 255
     cur_obj_disable_rendering()
 end
 
@@ -895,7 +1542,10 @@ function held_item_loop(o)
     local sMario = gPlayerSyncTable[o.hookRender - 1]
     local m = gMarioStates[o.hookRender - 1]
 
-    if (sMario.isBomb and (not sMario.spectator) and gGlobalSyncTable.gameState == 2) then
+    if m.playerIndex == 0 and m.action == ACT_DEBUG_FREE_MOVE and DEBUG_MODEL then
+        handle_debug_appear(m, o)
+        return
+    elseif (sMario.isBomb and (not sMario.spectator) and gGlobalSyncTable.gameState == 2) then
         if o.unused1 ~= 0 or (m.invincTimer > 2 and m.marioObj.oTimer & 1 ~= 0) then
             cur_obj_disable_rendering()
         else
@@ -905,7 +1555,7 @@ function held_item_loop(o)
             cur_obj_init_animation_with_accel_and_sound(0, math.max(0, m.forwardVel) * 0.1)
         end
         return
-    elseif (sMario.bulletTimer and sMario.bulletTimer ~= 0) then
+    elseif (sMario.bulletTimer and sMario.bulletTimer ~= 0) and (m.action & ACT_FLAG_SWIMMING == 0 and m.action & ACT_FLAG_SWIMMING_OR_FLYING ~= 0) then
         if o.unused1 ~= 0 then
             cur_obj_disable_rendering()
         else
@@ -962,6 +1612,10 @@ function held_item_loop(o)
 
         -- spawn extra items for triples/doubles
         local count = data.count or 1
+        if gGlobalSyncTable.reduceObjects then
+            count = 1
+        end
+
         if o.unused1 < count - 1 and (o.parentObj == o or o.parentObj == nil) then
             local newObj = spawn_non_sync_object(id_bhvHeldItem, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
             o.parentObj = newObj
@@ -993,12 +1647,18 @@ id_bhvHeldItem = hook_behavior(nil, OBJ_LIST_DEFAULT, true, held_item_init, held
 
 -- item rendering
 function on_obj_render(o)
-    if o.hookRender == 0x5B then
-        if o.oInteractType & INTERACT_STAR_OR_KEY ~= 0 then
-            obj_mark_for_deletion(o)
-        elseif o.oInteractType & INTERACT_COIN ~= 0 then
-            if gGlobalSyncTable.gameMode ~= 3 then
+    -- jank way of deleting generated stars and coins
+    if o.hookRender == 0x60 then
+        local np = gNetworkPlayers[0]
+        if o.oInteractType & INTERACT_STAR_OR_KEY ~= 0 or obj_has_behavior_id(o, id_bhvStarSpawnCoordinates) ~= 0 then
+            if (np.currAreaSyncValid and np.currLevelSyncValid) then
                 obj_mark_for_deletion(o)
+            end
+        elseif obj_is_coin(o) then
+            if gGlobalSyncTable.gameMode ~= 3 then
+                if (np.currAreaSyncValid and np.currLevelSyncValid) then
+                    obj_mark_for_deletion(o)
+                end
             else
                 coinsExist = coinsExist + o.oDamageOrCoinValue
             end
@@ -1013,7 +1673,10 @@ function on_obj_render(o)
     local m = gMarioStates[o.hookRender - 1]
     local graphicsObj = m.marioObj.header.gfx
 
-    if sMario.isBomb and (not sMario.spectator) and gGlobalSyncTable.gameState == 2 then
+    if m.playerIndex == 0 and m.action == ACT_DEBUG_FREE_MOVE and DEBUG_MODEL then
+        handle_debug_appear(m, o)
+        return
+    elseif sMario.isBomb and (not sMario.spectator) and gGlobalSyncTable.gameState == 2 then
         obj_scale_xyz(o, graphicsObj.scale.x, graphicsObj.scale.y, graphicsObj.scale.z)
         obj_set_model_extended(o, E_MODEL_COLOR_BOMB)
         o.oPosX = m.pos.x
@@ -1025,8 +1688,13 @@ function on_obj_render(o)
 
         o.oFaceAnglePitch = graphicsObj.angle.x + (m.action ~= ACT_WALKING and 0 or m.marioBodyState.torsoAngle.x * 0.5)
         o.oFaceAngleYaw = graphicsObj.angle.y
-        if m.action == ACT_SIDE_FLIP or m.action == ACT_SIDE_FLIP_LAND or (m.action & ACT_FLAG_ON_POLE ~= 0 and m.action ~= ACT_TOP_OF_POLE) or m.action == ACT_TURNING_AROUND or m.action == ACT_FINISH_TURNING_AROUND then
+        if m.action == ACT_SIDE_FLIP or m.action == ACT_SIDE_FLIP_LAND or m.action == ACT_TURNING_AROUND or m.action == ACT_FINISH_TURNING_AROUND then
             o.oFaceAngleYaw = o.oFaceAngleYaw + 0x8000
+        elseif m.action == ACT_TOP_OF_POLE or m.action == ACT_TOP_OF_POLE_TRANSITION then
+            o.oPosY = o.oPosY - 80
+        elseif m.action & ACT_FLAG_ON_POLE ~= 0 then
+            o.oPosX = o.oPosX - sins(o.oFaceAngleYaw) * 50
+            o.oPosZ = o.oPosZ - coss(o.oFaceAngleYaw) * 50
         end
         o.oFaceAngleRoll = graphicsObj.angle.z
 
@@ -1055,8 +1723,8 @@ function on_obj_render(o)
         return
     end
 
-    -- dont render off-screen
-    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime ~= torsoTime + 1)) then
+    -- dont render off-screens
+    if m.playerIndex ~= 0 and (is_player_active(m) == 0 or (m.marioBodyState.updateTorsoTime < torsoTime)) then
         return
     end
 
@@ -1070,9 +1738,9 @@ function on_obj_render(o)
         o.oPosY = get_hand_foot_pos_y(m, 0) + (data.yOffset or 0)
         o.oPosZ = get_hand_foot_pos_z(m, 0)
         if m.marioBodyState.handState ~= MARIO_HAND_FISTS or m.marioBodyState.action & ACT_FLAG_SWIMMING_OR_FLYING ~= 0 then
-            o.oPosX = m.pos.x
-            o.oPosY = m.pos.y + 160 + (data.yOffset or 0)
-            o.oPosZ = m.pos.z
+            o.oPosX = m.marioBodyState.headPos.x
+            o.oPosY = m.marioBodyState.headPos.y + 70 + (data.yOffset or 0)
+            o.oPosZ = m.marioBodyState.headPos.z
         end
         o.oFaceAnglePitch = (data.pitchOffset or 0)
         o.oFaceAngleYaw = graphicsObj.angle.y + (data.yawOffset or 0)
@@ -1130,8 +1798,6 @@ function custom_shell_loop(o)
             else
                 koopa_shell_spawn_sparkles(o, 10.0)
             end
-        else
-            koopa_shell_spawn_sparkles(o, 10.0)
         end
         if player then
             o.oFaceAngleYaw = player.oMoveAngleYaw
@@ -1167,12 +1833,12 @@ function bhv_koopa_shell_flame_spawn(o)
 end
 
 function koopa_shell_spawn_sparkles(o, a)
-    local sp1C = spawn_non_sync_object(id_bhvSparkleSpawn, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
+    local sp1C = spawn_non_sync_object(id_bhvMistParticleSpawner, E_MODEL_NONE, o.oPosX, o.oPosY, o.oPosZ, nil)
     if not sp1C then return end
     sp1C.oPosY = sp1C.oPosY + a
 end
 
-id_bhvSTShell = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_shell_init, custom_shell_loop, nil)
+id_bhvSTShell = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_shell_init, custom_shell_loop, "bhvSTShell")
 
 function custom_coin_init(o, damageOrCoinValue)
     o.oFlags = OBJ_FLAG_UPDATE_GFX_POS_AND_ANGLE
@@ -1200,7 +1866,7 @@ function custom_coin_init(o, damageOrCoinValue)
     hitbox.hurtboxRadius = 0
     hitbox.hurtboxHeight = 0
     obj_set_hitbox(o, hitbox)
-    o.oIntangibleTimer = 10
+    cur_obj_become_intangible()
 
     network_init_object(o, true, {})
 end
@@ -1216,14 +1882,10 @@ function custom_coin_loop(o)
     obj_set_billboard(o)
 
     if (o.oTimer == 1) then
-        o.oSubAction = 0
-        local random = math.random(get_time())
-        math.randomseed(o.oSyncID + o.oPosX, o.oPosZ) -- for consistent results across clients
-        o.oVelY = math.random(10, 50)
-        o.oForwardVel = math.random(5, 30)
-        o.oMoveAngleYaw = math.random(0, 0xFFFF)
         cur_obj_play_sound_2(SOUND_GENERAL_COIN_SPURT_2)
-        math.randomseed(random) -- re-randomize
+    end
+    if o.oVelY <= 0 then
+        cur_obj_become_tangible()
     end
 
     local sp1C = o.oFloor
@@ -1252,7 +1914,8 @@ function custom_coin_loop(o)
     local prevY = o.oPosY
     cur_obj_update_floor_and_walls();
     cur_obj_if_hit_wall_bounce_away();
-    cur_obj_move_standard(-62);
+    cur_obj_move_standard(62);
+    sp1C = o.oFloor
 
     -- prevent ceiling clip
     if ((o.oFloorHeight > prevY + 2 or (thisLevel and thisLevel.maxHeight and o.oPosY > thisLevel.maxHeight))) and o.oVelY > 2 then
@@ -1261,6 +1924,7 @@ function custom_coin_loop(o)
     end
 
     if (not sp1C) or o.oMoveFlags & (OBJ_MOVE_LANDED | OBJ_MOVE_ON_GROUND) ~= 0 then
+        cur_obj_become_tangible()
         if is_hazard_floor(o.oFloorType) then
             random_valid_pos(nil, o)
             o.oForwardVel = 0
@@ -1269,6 +1933,7 @@ function custom_coin_loop(o)
     end
     if (o.oMoveFlags & OBJ_MOVE_BOUNCE ~= 0) then
         cur_obj_play_sound_2(SOUND_GENERAL_COIN_DROP)
+        cur_obj_become_tangible()
         if (not sp1C) or (sp1C.normal.y >= 0.9) then
             o.oForwardVel = o.oForwardVel * o.oFriction
         elseif o.oForwardVel == 0 then
@@ -1282,11 +1947,14 @@ function custom_coin_loop(o)
         spawn_non_sync_object(id_bhvGoldenCoinSparkles, E_MODEL_SPARKLES, o.oPosX, o.oPosY, o.oPosZ, nil)
         obj_mark_for_deletion(o)
     end
+    if o.oIntangibleTimer ~= -1 and o.oTimer < 15 then
+        o.oIntangibleTimer = 15 - o.oTimer
+    end
     o.oInteractStatus = 0
 end
 
-id_bhvSTYellowCoin = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_coin_init, custom_coin_loop, nil)
-id_bhvSTBlueCoin = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_blue_coin_init, custom_coin_loop, nil)
+id_bhvSTYellowCoin = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_coin_init, custom_coin_loop, "bhvSTYellowCoin")
+id_bhvSTBlueCoin = hook_behavior(nil, OBJ_LIST_LEVEL, true, custom_blue_coin_init, custom_coin_loop, "bhvSTBlueCoin")
 
 -- fix bowser
 function fix_bowser()
@@ -1324,13 +1992,13 @@ hook_behavior(id_bhvFallingBowserPlatform, OBJ_LIST_SURFACE, false, nil, custom_
 
 -- delete objects
 function set_spawn_potential(o)
-    if prevent_obj_dupe(o, true) then return end
+    if prevent_obj_dupe(o) then return end
     table.insert(spawn_potential, { o.oPosX, o.oPosY + 160, o.oPosZ })
     obj_mark_for_deletion(o)
 end
 
 function set_spawn_potential_priority(o)
-    if prevent_obj_dupe(o, true) then return end
+    if prevent_obj_dupe(o) then return end
     table.insert(spawn_potential, 1, { o.oPosX, o.oPosY + 160, o.oPosZ })
     obj_mark_for_deletion(o)
 end
@@ -1341,15 +2009,15 @@ local id_delete = {
     [id_bhvCannonBarrel] = 1,
     -- [id_bhvBlueCoinSwitch] = 1,
     [id_bhvMessagePanel] = 1,
-    [id_bhvBobombBuddy] = 1,
-    [id_bhvBobombBuddyOpensCannon] = 1,
+    [id_bhvBobombBuddy] = 2,
+    [id_bhvBobombBuddyOpensCannon] = 2,
     [id_bhvChuckya] = 1,
     [id_bhvWaterLevelDiamond] = 1,
-    [id_bhvWarpPipe] = 1,
+    [id_bhvWarpPipe] = 2,
     [id_bhvTweester] = 1,
     [id_bhvExclamationBox] = 0,
     [id_bhvRedCoinStarMarker] = 1,
-    [id_bhvTreasureChestBottom] = 1,
+    [id_bhvTreasureChestBottom] = 0,
     [id_bhvTreasureChestTop] = 1,
     [id_bhvDoor] = 1,
     [id_bhvStarDoor] = 1,
@@ -1360,6 +2028,8 @@ local id_delete = {
     [id_bhvRacingPenguin] = 1,
     [id_bhvSmallPenguin] = 1,
     [id_bhvWhompKingBoss] = 1,
+    [id_bhvWigglerHead] = 1,
+    [id_bhvWigglerBody] = 1,
     [id_bhvCapSwitch] = 2,
     [id_bhv1Up] = 0,
     [id_bhv1upSliding] = 0,
@@ -1384,11 +2054,11 @@ end
 ---@param o Object
 function set_hook_render_temp(o)
     if get_object_list_from_behavior(o.behavior) == OBJ_LIST_LEVEL then
-        o.hookRender = 0x5B
+        o.hookRender = 0x60
     end
 end
 
-hook_event(HOOK_OBJECT_SET_MODEL, set_hook_render_temp)
+hook_event(HOOK_ON_OBJECT_LOAD, set_hook_render_temp)
 
 -- name: Remove Star Spawn Cutscenes
 -- description: Created by Sunk.
@@ -1413,29 +2083,13 @@ end
 
 hook_event(HOOK_UPDATE, remove_timestop)
 
--- deletes objects with the same sync id (for some stuff, delete duplicate objects on load)
-function prevent_obj_dupe(o, byPointer)
-    if byPointer then -- used by arena objects and spawn potential objects
-        if already_spawn_pointer[o] then
-            obj_mark_for_deletion(o)
-            return true
-        end
-        already_spawn_pointer[o] = 1
-        return
+-- deletes duplicate objects on load, used mainly for arena support
+function prevent_obj_dupe(o)
+    if already_spawn_pointer[o] then
+        obj_mark_for_deletion(o)
+        return true
     end
-
-    if o.oSyncID == nil or o.oSyncID == 0 or o.unused1 == 1 then return end
-    o.unused1 = 1 -- flag this as checked
-
-    -- this deletes the older object, since the newer one is what the actual sync object is
-    local id = get_id_from_behavior(o.behavior)
-    local other = obj_get_first_with_behavior_id_and_field_s32(id, 0x04, o.oSyncID) -- 0x04 is "oSyncID"
-    if other == o then other = obj_get_next_with_same_behavior_id_and_field_s32(other, 0x40, o.oSyncID) end
-    --print("New object:",id,o.oSyncID)
-    if other and other ~= o then
-        --print("Duplicate sync object!",o.oSyncID)
-        obj_mark_for_deletion(other)
-    end
+    already_spawn_pointer[o] = 1
 end
 
 -- reset already used ids + delete coins if not coin rush
@@ -1448,7 +2102,9 @@ function reset_spawned()
         if o.oInteractType & INTERACT_STAR_OR_KEY ~= 0 then
             obj_mark_for_deletion(o)
         elseif obj_is_coin(o) and gGlobalSyncTable.gameMode ~= 3 then
-            obj_mark_for_deletion(o)
+            -- rather than use obj_mark_for_deletion, we mark the coin as collected, which deletes it anyway
+            -- this SOMEHOW fixes balloon desync issues???
+            o.oInteractStatus = INT_STATUS_INTERACTED
         end
         o = obj_get_next(o)
     end
@@ -1465,15 +2121,17 @@ hook_event(HOOK_ON_SYNC_VALID, reset_spawned)
 
 -- arena map support starts here
 function replace_shine(o)
-    if prevent_obj_dupe(o, true) then return end
-    table.insert(spawn_potential, { o.oPosX, o.oPosY, o.oPosZ })
+    if prevent_obj_dupe(o) then return end
+    local pos = 2
+    if o.oBehParams == 0 or #spawn_potential == 0 then pos = 1 end
+    table.insert(spawn_potential, pos, { o.oPosX, o.oPosY, o.oPosZ })
     obj_mark_for_deletion(o)
 end
 
 id_bhvArenaFlag = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_shine, nil, "bhvArenaFlag")
 
 function replace_spawn(o)
-    if prevent_obj_dupe(o, true) then return end
+    if prevent_obj_dupe(o) then return end
     if arenaSpawnLocations == nil or arenaSpawnLocations[0] == nil then
         arenaSpawnLocations = {}
         arenaSpawnLocations[0] = { o.oPosX, o.oPosY, o.oPosZ }
@@ -1486,7 +2144,7 @@ end
 id_bhvArenaSpawn = hook_behavior(nil, OBJ_LIST_LEVEL, false, replace_spawn, nil, "bhvArenaSpawn")
 
 function replace_item(o)
-    if prevent_obj_dupe(o, true) then return end
+    if prevent_obj_dupe(o) then return end
     if not arenaItemBoxLocations then
         arenaItemBoxLocations = {}
     end

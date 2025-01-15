@@ -1,0 +1,128 @@
+# 3.5
+## New Content
+- New items:
+    - Green Shell: Common, fast-moving shells that bounce off of walls
+    - Triple Green Shell: Three of the above
+    - Boo: Steals an item from another player, or gives you Triple Mushrooms if no one has any
+    - Lightning Bolt: Rare item that stuns all opponents and makes them drop items (see "Item Dropping" below)
+    - Poison Mushroom: Common item that slowly chases players and shrinks them if they get hit, making them slow
+- Added Arena-Style items game setting
+    - Replaces item boxes with visible items, like in the Arena gamemode
+    - Triple items will not appear when this is enabled
+- Added "Cycle" game mode setting
+    - Cycles through all modes in order
+- Added "Random (No Air)" variant setting
+    - Identical to the Random setting, but excludes Air Battle and Air + Boost
+- New "Item Dropping" mechanic; hitting another player with a punch (non-revamped pvp) or ground-pound will cause them to drop their item
+    - Some items will stick around and can be used by other players
+    - Pow Blocks, Blue Shells, and the Lightning Bolt will also cause this
+    - Also occurs when sidelined in Balloon Battle/Attack or captured in Renegade Roundup
+- New variant: "Item Rain"
+    - Items fall from the sky, working just like in CTGP
+    - Items that normally don't stick around can also fall and be used, such as Bullet Bills
+- Replaced Moon Runner's mode-specific variant "Rush" with a new variant, "Drop"
+    - Everyone drops one moon at the end of each round
+- Added the following new maps:
+    - Jolly Roger Bay (Main area)
+    - Big Boo's Haunt
+    - Tick Tock Clock
+- Special and item binds can now be set seperately, and come with more options
+- New option to reduce shaking/flashing
+    - Shaking refers to camera shake, and flashing refers to the flash effect from the Lightning Bolt item
+- New option to respawn immediately if you're in a bonking action above the death barrier ("Quick Respawn")
+- Added custom player list! It shows placements, personal scores in team battle, and more.
+    - Can be disabled in Options
+- Added fancy motion to the menu, which can be disabled in options
+- Remade the course selection menu! You can now see all maps in a square format.
+    - Press Z to access Game Settings and Y to access Options
+    - Old map menu can be accessed by turning it on in Options
+- You can now blacklist stages by pressing the X button while selecting a map
+    - Works for custom as well
+- Added /desync to fix desync issues
+    - Note that unlike in MarioHunt, saying "desync" won't trigger this automatically
+- Added automatic AFK detection, which makes a player spectator if they are not active
+- Added new "hanging kick" action to hit people in Wiggler's Cave
+## Gameplay Adjustments
+- Heavily reworked item probabilties, it should be more balanced now
+- The Bullet Bill item now makes the player invincible, similarly to a Star
+- Bananas now react appropriately on moving platforms
+- The Pow Block now deals stronger knockback
+- It is no longer possible to dodge the Blue Shell by diving or bonking into a wall
+- Slide kick has been buffed; it now takes priority over dives from the front
+- In Shine Thief, the player's speed is now capped a bit lower (40 -> 35)
+    - Note this cap is different in some situations, such as riding a shell
+- In Shine Thief and Moon Runners, the shine/moon will now return to the last spot it was on safe ground if it falls off the stage
+- Removed spawn camping punishment in Shine Thief and Moon Runners
+- In the Blowout variant (Balloon Battle/Attack exclusive), stealing a balloon while already holding 5 balloons will now add balloons to your stockpile (also up to 5)
+- In the Blowout variant, balloons may no longer be filled during the starting timer.
+- Buffed passing the shine a lot; it now considers where the player is moving and throws the shine to where they will be
+- In Renegade Roundup, the Law will now always have more members if teams are uneven
+- Passing actions can no longer be done while the item roulette is active
+- Items can no longer be used while in a knockback action
+    - Also applies to variant abilties (Shells in Shell Rush, etc.)
+- Removed horizontal wind from all stages (ex: Huge Island)
+- You can now move during the startup hanging animation
+- You can now ground pound while in the "shot from cannon" action (used with springs on some Arena maps)
+- Spawning in mid-air will now grant a brief wing cap (notably on Bowser's Sky Domain)
+- Wiggler's Cave now has a pipe leading to the upper layer (Wiggler is gone though)
+- You will no longer slide off of the roof of the big house in Rainbow Ride (like in Tag)
+- Added pipe at each of the cannons in CCM
+- Added more item boxes to Dorrie's Domain, Wet-Dry World, The Secret Aquarium, and all Bowser maps
+- The McDonald's building itself is now enterable on the McDonald's map (accessible by enabling the McDonald's mod)
+- Vote and Random map options now wait for at least 2 players to exist
+- Selecting "Play Again" or "Restart" now tries to keep the same teams
+- Players that disconnect during Coin Rush or Moon Runners will drop all of their coins/moons respectively
+- Players that join during Coin Rush will now get slightly less coins
+- Exiting spectator mode as a Bomb will now respawn the player
+- Moved "Open Character Select" option (when Character Select is enabled) to the main pause menu or voting screen
+## Visual/Audio Changes
+- Renamed the mod *again* to "Kart Battles" so that the version number fits in the lobby
+- Minimaps on some stages now have new "centers"
+- Minimap now shows coins in Coin Rush as well as item boxes and pipe locations
+- Renamed "God Mode" to "Disable Hazard Floors" to make its effect more clear
+- Made item roulette appear more similarly to Mario Kart
+- Metal players also appear rainbow while under the effect of a star (mainly, the Law)
+- The star's rainbow effect now applies to the custom hud heads too
+- Mushrooms are red now to match the Mario Kart series
+- Renamed the "New Game" option to "Choose Map" in all menus except the mid-game pause menu
+- Having no teams selected now shows Teams as "Off" instead of "0" in the menu
+- Irrelevant game settings will now disappear from the settings list. These include:
+    - Arena-Style Items, if Items are Off
+    - Initial Balloons, if the selected game mode doesn't have balloons
+    - Bomb Players, if the selected game mode doesn't have elimination
+- Replaced Inside The Jolly Roger's painting (the Jolly Roger Bay painting is used for the main area now)
+- Replaced the Tiny Island and Huge Island paintings to make them more distinct
+- Added the race gun shot sfx when a match ends on a map with streamed audio
+- Replaced star above head for players in 1st place with a crown
+    - Based on LeoHaha's model for MarioHunt
+- Added visual indicator when hitting a hardcoded ceiling (exists on Dorrie's Domain)
+- Changed description for /move and /reset to be more detailed
+## Bug Fixes
+- Fixed showtime not working in game modes other than Shine Thief
+- Fixed minimaps on some stages being too large
+- Fixed going near the blocked entrance to COTMC on Dorrie's Domain killing the player
+- Fixed not being able to pick up certain items due to spectators
+- Fixed starting a lobby with Team Mode enabled causing script errors
+- Fixed starting a lobby not applying the selected initial balloons to the host
+- Fixed mid-air triple jump when spawning in Rainbow Ride
+- Fixed many syncing issues (mainly with Coin Rush coins and balloons)
+- Fixed players sometimes not getting sent to a new stage
+- Fixed only the host getting worse items when holding the shine
+- Fixed game timer being skipped if a non-host starts a game
+- Fixed custom hud head not working if Character Select is enabled
+- Fixed players falsely appearing as bullet bills
+- Fixed players not getting sent to the level the game is taking place in
+- Fixed Moon Runners never ending if any bomb players are present
+- Fixed respawning with the Blowout variant always giving 3 restock balloons
+- Fixed getting launched into the sky if you win above quicksand
+- Fixed camera not updating when falling off of the stage when vanilla camera is on
+- Fixed exiting spectator in some modes not properly marking the player as eliminated
+- Fixed Moons being referred to as Shines when using the /reset or /move command during Moon Runners
+- Fixed joining players first entering BoB
+- Fixed random crashes when using the "custom" option
+## API
+- Improved debug mode (accessible by enabling Cheats alongside the mod)
+- Added add_item_object, which adds items to the item_id_list responsible for handling interactions
+- Added is_small to get if a player is small from a Poison Mushroom
+- Added do_item_collision and set_action_after_throw
+- Added all new actions introduced in this update to the API
